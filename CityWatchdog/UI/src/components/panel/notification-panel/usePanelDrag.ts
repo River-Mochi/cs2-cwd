@@ -24,7 +24,10 @@ type DragState = {
 // Module scope so the panel keeps its place when closed and reopened within one session.
 let sessionPanelOffset: PanelOffset = { x: 0, y: 0 };
 
-export const usePanelDrag = (savedOffset: PanelOffset) => {
+export const usePanelDrag = (
+    savedOffset: PanelOffset,
+    onPositionChanged: (x: number, y: number) => void = OnPanelPositionChanged,
+) => {
     const [panelOffset, setPanelOffset] = useState<PanelOffset>(sessionPanelOffset);
     const [panelDragging, setPanelDragging] = useState(false);
     const panelElementRef = useRef<HTMLDivElement | null>(null);
@@ -157,7 +160,7 @@ export const usePanelDrag = (savedOffset: PanelOffset) => {
             setPanelDragging(false);
             applyPanelOffset(pendingOffsetRef.current);
             // Persist the final position so the panel returns here after a game restart.
-            OnPanelPositionChanged(pendingOffsetRef.current.x, pendingOffsetRef.current.y);
+            onPositionChanged(pendingOffsetRef.current.x, pendingOffsetRef.current.y);
         };
 
         window.addEventListener("mousemove", onMouseMove);
@@ -167,7 +170,7 @@ export const usePanelDrag = (savedOffset: PanelOffset) => {
             window.removeEventListener("mousemove", onMouseMove);
             window.removeEventListener("mouseup", onMouseUp);
         };
-    }, [applyPanelOffset, panelDragging]);
+    }, [applyPanelOffset, onPositionChanged, panelDragging]);
 
     useEffect(() => () => {
         if (animationFrameRef.current !== null) {

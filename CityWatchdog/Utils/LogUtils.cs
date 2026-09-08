@@ -7,7 +7,7 @@
 // ================= </copyright> ======================
 
 // File: Utils/LogUtils.cs
-// Version: 0.6.9 based on River-Mochi shared CS2 utilities.
+// Version: 0.7.2 based on River-Mochi shared CS2 utilities.
 // Purpose: reduce Colossal logger NRE popups with direct .NET file logging.
 // Why: routine mod logs bypass Colossal's logger write path.
 //
@@ -34,15 +34,14 @@
 //   Warn once:                  LogUtils.WarnOnce("key", () => "message");
 //
 // Helpers: Info/Warn/Error/Debug/Trace. TryLog accepts any Colossal Level.
-
-namespace CS2Shared.RiverMochi
-{
     using System;
     using System.Collections.Generic;
     using System.Globalization;     // stable timestamp format
     using System.IO;
     using Colossal.Logging;
 
+namespace CS2Shared.RiverMochi
+{
     public static class LogUtils
     {
         private static readonly object s_WarnOnceLock = new();
@@ -330,8 +329,7 @@ namespace CS2Shared.RiverMochi
                     Directory.CreateDirectory(dir);
                 }
 
-                using FileStream stream = new FileStream(
-                    logPath,
+                using FileStream stream = new( logPath,
                     FileMode.Append,
                     FileAccess.Write,
                     FileShare.ReadWrite);

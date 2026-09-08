@@ -7,7 +7,8 @@ import mod from "../../mod.json";
 export const controlPanelEnabled$ = bindValue<boolean>(mod.id, "ControlPanelEnabled", false);
 export const moneyView$ = bindValue<boolean>(mod.id, "MoneyView", true);
 export const moneyViewMode$ = bindValue<number>(mod.id, "MoneyViewMode", 1);
-export const moneyTooltipMode$ = bindValue<number>(mod.id, "MoneyTooltipMode", 1);
+export const moneyTooltipMode$ = bindValue<number>(mod.id, "MoneyTooltipMode", 0);
+
 export const moneyTooltipFontScale$ = bindValue<number>(mod.id, "MoneyTooltipFontScale", 120);
 export const populationTooltipFontScale$ = bindValue<number>(mod.id, "PopulationTooltipFontScale", 120);
 export const disableAllTooltips$ = bindValue<boolean>(mod.id, "DisableAllTooltips", false);
@@ -35,6 +36,9 @@ export const miniHudVerticalPositionY$ = bindValue<number>(mod.id, "MiniHudVerti
 export const panelButtonsOnlyStart$ = bindValue<boolean>(mod.id, "PanelButtonsOnlyStart", false);
 export const panelPositionX$ = bindValue<number>(mod.id, "PanelPositionX", 0);
 export const panelPositionY$ = bindValue<number>(mod.id, "PanelPositionY", 0);
+export const editorQuickControlsEnabled$ = bindValue<boolean>(mod.id, "EditorQuickControlsEnabled", false);
+export const editorQuickControlsPositionX$ = bindValue<number>(mod.id, "EditorQuickControlsPositionX", 0);
+export const editorQuickControlsPositionY$ = bindValue<number>(mod.id, "EditorQuickControlsPositionY", 0);
 export const panelCollapsedSectionsMask$ = bindValue<number>(mod.id, "PanelCollapsedSectionsMask", 0);
 export const panelSortMode$ = bindValue<number>(mod.id, "PanelSortMode", 0);
 export const mainPanelOpacity$ = bindValue<number>(mod.id, "MainPanelOpacity", 80);
@@ -130,6 +134,8 @@ export const OnToggleMiniHudFavorite = (index: number) => trigger(mod.id, "Toggl
 export const OnMiniHudNotificationClicked = (index: number) => trigger(mod.id, "MiniHudNotificationClicked", index);
 export const OnMiniHudPositionChanged = (orientation: number, x: number, y: number) => trigger(mod.id, "MiniHudPositionChanged", `${orientation},${Math.round(x)},${Math.round(y)}`);
 export const OnPanelPositionChanged = (x: number, y: number) => trigger(mod.id, "PanelPositionChanged", `${Math.round(x)},${Math.round(y)}`);
+export const OnEditorQuickControlsEnabledChanged = (enabled: boolean) => trigger(mod.id, "EditorQuickControlsEnabled", enabled);
+export const OnEditorQuickControlsPositionChanged = (x: number, y: number) => trigger(mod.id, "EditorQuickControlsPositionChanged", `${Math.round(x)},${Math.round(y)}`);
 export const OnPanelCollapsedSectionsChanged = (mask: number) => trigger(mod.id, "PanelCollapsedSectionsChanged", mask);
 export const OnPanelSortModeChanged = (mode: number) => trigger(mod.id, "PanelSortModeChanged", mode);
 

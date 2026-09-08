@@ -27,135 +27,126 @@ namespace CityWatchdog
             IList<IDictionaryEntryError> errors,
             Dictionary<string, int> indexCounts)
         {
-            string title = Mod.ModName;
-            if (!string.IsNullOrEmpty(Mod.ModVersion))
-            {
-                title += " (" + Mod.ModVersion + ")";
-            }
 
             Dictionary<string, string> entries = new()
             {
                 // --- Mod title ---
-                { m_Settings.GetSettingsLocaleID(), title },
+                { m_Settings.GetSettingsLocaleID(), Mod.ModName },
 
                 // --- Tabs ---
-                { m_Settings.GetOptionTabLocaleID(CwdSettings.kActions), "Actions" },
+                { m_Settings.GetOptionTabLocaleID(CwdSettings.kActions), "Main" },
                 { m_Settings.GetOptionTabLocaleID(CwdSettings.kMiniHudTab), "Mini-HUD" },
-                { m_Settings.GetOptionTabLocaleID(CwdSettings.kMoneyTab), "City Start" },
+                { m_Settings.GetOptionTabLocaleID(CwdSettings.kHotkeys), "Key Bindings" },
                 { m_Settings.GetOptionTabLocaleID(CwdSettings.kAbout), "About" },
 
                 // --- Groups, ordered by Options menu location ---
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutUsage), "USAGE" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kNotifications), "Notifications" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMoneyViewGroup), "In-City Info Viewer" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kNotifications), "Main Notification Panel" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kHotkeyActions), "Main Panel and Display" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMoneyViewGroup), "Show Trends on menu bar" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMiniHudGroup), "Mini HUD Notifications" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMilestone), "CITY START SETTINGS" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMoney), "Money" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kSaveConversion), "Convert Unlimited Save" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutInfo), "" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutLinks), "" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutDiagnostics), "DIAGNOSTICS" },
 
                 // --------------------------------------------------------------------
-                // Actions tab - Usage
+                // Main tab - Usage
                 // --------------------------------------------------------------------
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ShowUsage)), "Show Instructions" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ShowUsage)), "Show or hide the usage instructions below." },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.UsageText)),
-                    "A. Use Paw icon (city top left), or press Shift+N, to open the main panel.\n" +
-                    "<Display toggles>\n" +
-                    "1. Title bar icon: show/hide City Watchdog mod tooltips.\n" +
-                    "\n" +
-                    "2. **[i]** button: hide/show <ALL> game hover tooltips - buildings, cims, tools, bottom menu icons.\n" +
-                    "3. Road button: hide/show road name labels. Hotkey: \\.\n" +
-                    "4. District button: hide/show district name labels.\n" +
-                    "5. Road Arrow button: force 1-way road arrows on/off (also hides road names).\n" +
-                    "\n" +
+                    "<City mode>\n" +
+                    "Use Paw icon (top-left), or hotkey Shift+N, to open the Main Notification Panel.\n" +
+                    "Drag the panel by the title bar. Use the arrow button to collapse or expand the panel.\n" +
                     "<Notification alerts>\n" +
-                    "1. Sort button cycles A→Z, Z→A, Active-only list.\n" +
-                    "2. <[0/62]> = icons ON/total. Click to expand/collapse all rows.\n" +
-                    "3a. [Show Icons] instantly turns Off/On all problem alert icons.\n" +
-                    "3b. Presets [1 | 2]: click to load; hold for 1 second to save the current checkboxes.\n" +
-                    "3c. Hiding an icon does not fix the underlying city problem.\n" +
-                    "\n" +
-                    "<Helpers>\n" +
-                    "1. Add / Subtract Money: use the default keys <[ or ]> for <Money Hotkey Amount>.\n" +
-                    "2. Automatic money adds money when a city goes lower than the limit you set.\n" +
-                    "3. Convert Unlimited Money Save is only for cities that were started with Unlimited Money and is <not reversible>.\n" +
-                    "\n" +
-                    "<Bottom menu tooltips>\n" +
-                    "Money View adds extra details like Trending on mouse hover over money or population tooltips.\n" +
-                    "\n" +
-                    "<Custom milestone>\n" +
-                    "City Start sets Initial Money or Milestones before loading or starting a city."
+                    "Use Show All to hide or show all Icons over buildings.\n" +
+                    "Optional Presets [1] [2] only save your current [x] checkbox selection: click to load; hold 1 sec to save a new set of selected rows you want to show or hide.\n" +
+                    "Blue Stars are for the Mini HUD favorites and not part of Presets [1] or [2].\n" +
+                    "<Show Trends>\n" +
+                    "Enable Population + Money trends and extra hover details on the bottom menu tooltips.\n" +
+                    "<Editor mode>\n" +
+                    "In Editor mode, press Shift+N to see the City Watchdog Editor special toolbar, a smaller toolset."
                 },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.UsageText)), "" },
 
                 // --------------------------------------------------------------------
-                // Actions tab - Notifications
+                // Main tab - Notifications
                 // --------------------------------------------------------------------
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleNotificationsKeyboardBinding)), "Toggle Notification Icons" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleNotificationsKeyboardBinding)),
-                    "<Hotkey> for the same action as the in-game <[SHOW ICONS]> button.\n" +
-                    "It shows or hides all problem alert icons instantly."
+                    "<Hotkey> for the same action as the in-game <[SHOW ALL]> button.\n" +
+                    "It shows or hides all problem alert icons instantly.\n" +
+                    "**CITY mode only.**"
                 },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationsAction), "Instant show/hide problem alert icons" },
+                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationsAction), "Instant show/hide issue icons" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleNotificationPanelKeyboardBinding)), "Open/Close Notification Panel" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleNotificationPanelKeyboardBinding)),
                     "<Hotkey> for opening or closing the\n" +
                     "<notification panel> in the city.\n" +
-                    "Works the same as clicking the top-left City Watchdog icon."
+                    "Works the same as clicking the top-left City Watchdog icon.\n" +
+                    "**Works in EDITOR mode — opens Editor Quick Controls.**"
                 },
                 { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationPanelAction), "Open/Close notification panel" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.PanelButtonsOnlyStart)), "Main panel: opens as collapsed 1-row only display" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.PanelButtonsOnlyStart)), "Always open big panel collapsed" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.PanelButtonsOnlyStart)),
-                    "When enabled [ ✓ ], City Watchdog opens large panel first with only 1-row of buttons displayed.\n" +
-                    "Use the title-bar arrow or [0/62] looking button to expand and show the full panel."
+                    "When enabled [ ✓ ], always opens the city big CWD panel minimized to only 1-row of buttons.\n" +
+                    "Use the title-bar arrow or click the button looks like [0/62] to expand and show the full panel."
+                },
+
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.DisableCwdTooltips)), "Disable City Watchdog tooltips" },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.DisableCwdTooltips)),
+                    "Hides most City Watchdog Main Panel tooltips.\n" +
+                    "<Keep this OFF> is recommended for most players.\n" +
+                    "Only affects City Watchdog — useful if you prefer a cleaner panel."
                 },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleRoadNamesKeyboardBinding)), "Hide/Show Road Names" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleRoadNamesKeyboardBinding)),
                     "<Hotkey> to instantly hide or show the vanilla road name labels in the city.\n" +
-                    "Same as clicking the Road-Name icon in the City Watchdog panel toolbar."
+                    "Same as clicking the Road-Name icon in the City Watchdog panel toolbar.\n" +
+                    "**Works in EDITOR + CITY mode.**"
                 },
                 { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleRoadNamesAction), "Hide/Show road names" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleAllTooltipsKeyboardBinding)), "Disable All Mouse over Tooltips" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleAllTooltipsKeyboardBinding)), "Disable All Game Tooltips" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleAllTooltipsKeyboardBinding)),
-                    "<Hotkey> to instantly hide or show ALL game hover tooltips — buildings, cims, tools, and bottom menu icons.\n" +
-                    "<City Watchdog's own money/population popups stay on>; those are controlled by the Money View option above.\n" +
-                    "Same as clicking the [i] icon on the City Watchdog panel inside the city."
+                    "<Hotkey> to instantly hide or show ALL game mouse hover over tooltips — buildings, cims, tools, and bottom menu icons.\n" +
+                    "This toggle [x] is the Same as clicking the [i] icon in-city on the City Watchdog panel (both are synced).\n" +
+                    "Does not touch this City Watchdog mod tooltips.\n" +
+                    "**Works in EDITOR + CITY mode.**"
                 },
                 { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleAllTooltipsAction), "Hide/Show all game hover tooltips" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.InterfaceScaling)), "Bigger Game UI" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.InterfaceScaling)),
-                    "When enabled [ ✓ ], the <whole game UI> is larger — game + mod panels.\n" +
-                    "Uses the game's own <Interface Scaling> option without requiring the <--developerMode> launch parameter.\n" +
-                    "This [x] checkbox is synced with the scale button in the City Watchdog title bar.\n" +
-                    "For game text size only, use Options > Interface > <Text Scaling>.\n" +
+                    "When enabled [ ✓ ], the <whole game UI> is a little larger — game + all panels.\n" +
+                    "This uses the game's own <Interface Dev Scale> option without requiring the <--developerMode> launch parameter.\n" +
+                    "This [x] checkbox is synced with the scale button in the CWD title bar.\n" +
+                    "Game text size only is not touched. Use Options > Interface > <Text Scaling>.\n" +
                     "This stays on until you turn it off, even if City Watchdog is removed.\n" +
                     "- Turn this off before uninstalling to return the interface to normal size.\n" +
-                    "- Or launch once with <--developerMode> and turn off Options > Interface > Interface Scaling (dev)."
+                    "- Or launch just once with <--developerMode> and turn off Options > Interface > Interface Scaling (dev).\n" +
+                    " since this option is normally only visible if the game is launched with <--developerMode>."
                 },
 
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MainPanelOpacity)), "Main panel opacity" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MainPanelOpacity)), "CWD panel opacity" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MainPanelOpacity)),
-                    "Adjusts the main notification panel background transparency.\n" +
-                    "Lower values are more transparent. Higher values are darker and more solid."
+                    "Adjusts the background transparency.\n" +
+                    "**Adjusts both the Main City Watchdog Panel and our panel in Editor**\n" +
+                    "Lower values are more transparent. Higher is darker and more solid."
                 },
 
                 // --------------------------------------------------------------------
-                // Actions tab - In-City Info Viewer
+                // Main tab - In-City Info Viewer
                 // --------------------------------------------------------------------
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyView)), "Population + Money trending tooltips" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyView)), "Population + Money trends" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyView)),
                     "<Recommend Enable>\n" +
                     "Bottom game menu: Shows trend values with the game's bottom toolbar <money and population arrows>.\n" +
@@ -174,14 +165,14 @@ namespace CityWatchdog
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyTooltipMode)), "Tooltip style" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyTooltipMode)),
                     "Choose how much detail appears in the money hover tooltip.\n" +
-                    "Compact = default on first install.\n" +
-                    "<Mini> shows only 2 Net values for /mo and /h.\n" +
-                    "<Compact> shortens large values (15.21M instead of 15,212,318).\n" +
-                    "<Full data> shows long values and Total fields."
+                    "<Mini> shows minimalist Net in both /h and /mo.\n" +
+                    "<Compact> shows Income, Expenses, and Net using your selected /h or /mo view.\n" +
+                    "<Full Data> shows Income, Expenses, and Net in both /h and /mo."
                 },
+
                 { m_Settings.GetOptionLocaleID("MoneyTooltipModeMini"), "Mini" },
                 { m_Settings.GetOptionLocaleID("MoneyTooltipModeCompact"), "Compact" },
-                { m_Settings.GetOptionLocaleID("MoneyTooltipModeFullData"), "Full data" },
+                { m_Settings.GetOptionLocaleID("MoneyTooltipModeFullData"), "Full Data" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyTooltipFontScale)), "Money font size" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyTooltipFontScale)),
@@ -206,10 +197,16 @@ namespace CityWatchdog
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudEnabled)), "Show Mini HUD" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudEnabled)),
-                    "Shows a small city HUD with the most important notification counts.\n" +
-                    "Use it as a quick alert strip without opening the full City Watchdog panel.\n" +
-                    "Clicking an icon jumps to one matching problem spot.\n" +
-                    "Keep clicking the same icon to rotate through matching spots, then back to the first one."
+                    "Shows a small HUD panel.\n" + 
+                    "Use it as a quick tiny alert strip without opening the full City Watchdog panel or the clutter of 1000's of icons all over the city.\n" +
+                    "Clicking an icon jumps to the issue location on the map.\n" +
+                    "Keep clicking the same icon to cycle through other issue hot spots, then back to the first one.\n" +
+                    "**============================**\n" +
+                    "One way this is used:\n" +
+                    "1. Disable all Notification icons for the whole city with the button in the Main panel.\n" +
+                    "2. Enable Mini HUD to show only your Favorite 5 or 10 alerts.\n" +
+                    "3. In the full City Watchdog panel, check off each **Blue Star** that you want tracked (pick many, not just 10).\n" +
+                    "4. Mini HUD shows only the top 5 or 10 from your Blue Star favorites list that have the highest counts.\n"
                 },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ApplyMiniHudRecommendedPreset)), "Click This - Quick Start" },
@@ -267,113 +264,16 @@ namespace CityWatchdog
                 { m_Settings.GetOptionLocaleID("MiniHudPanelStyleDark"), "Dark panel" },
                 { m_Settings.GetOptionLocaleID("MiniHudPanelStyleGlass"), "Glass panel" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPanelOpacity)), "Background opacity" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPanelOpacity)), "Mini panel opacity" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudPanelOpacity)),
-                    "Adjusts Mini HUD background transparency.\n" +
-                    "Lower values are more transparent. Higher values are more solid.\n" +
-                    "Glass becomes more white/cloudy. Dark becomes more solid/dark."
+                    "Adjusts Mini HUD transparency.\n" +
+                    "Lower values = more transparent.\n" +
+                    "Higher values = more solid.\n" +
+                    "Glass is more white/cloudy panel background. Dark becomes more solid/dark."
                 },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudHideZero)), "Hide zero alerts" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudHideZero)), "When enabled [ ✓ ], the Mini HUD hides notification rows with a count of 0." },
-
-                // --------------------------------------------------------------------
-                // City Start tab - New City Start Settings
-                // --------------------------------------------------------------------
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.InitialMoney)), "Initial Start Money" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.InitialMoney)),
-                    "Sets the balance for the next loaded <limited-money> city — new or existing.\n" +
-                    "After it applies once, this setting resets to Game Default.\n" +
-                    "This is grayed out once a city is already loaded.\n" +
-                    "Set it before loading or starting the city. Afterward, use <Money Hotkey Amount> if needed."
-                },
-
-                { m_Settings.GetOptionLocaleID("GameDefault"), "Game Default" },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.CustomMilestone)), "Milestone Selector" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.CustomMilestone)),
-                    "Enable <before loading or starting a city> to unlock a chosen milestone immediately after the city loads.\n" +
-                    "- Cannot be turned ON after a city is loaded, but it can be turned OFF if it was left enabled by mistake.\n" +
-                    "- If you forgot and loaded a city, just restart the game, and pick milestone before entering a city.\n" +
-                    "- Mod cannot undo milestone changes already saved into a city; use an earlier save if needed."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MilestoneLevel)), "Milestone" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MilestoneLevel)),
-                    "Pick a milestone level to unlock on the next city load.\n" +
-                    "This is <only adjustable outside a loaded city>, and only after [Milestone Selector] is enabled [ ✓ ].\n" +
-                    "If the city is already at or past the milestone selected, then nothing will happen.\n" +
-                    "A change only happens if the milestone selected here is higher than what the city has."
-                },
-
-                // --------------------------------------------------------------------
-                // City Start tab - Money
-                // --------------------------------------------------------------------
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ManualMoneyAmount)), "Money Hotkey Amount" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ManualMoneyAmount)),
-                    "Use this amount with the Add Money and Subtract Money hotkeys.\n" +
-                    "<Mod default = 40,000>\n" +
-                    "This does nothing unless you use the hotkey to add/subtract money (in the city).\n" +
-                    "For automated money, enable the Automatic Add Money option."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AddMoneyKeyboardBinding)), "Add Money" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AddMoneyKeyboardBinding)), "Hotkey to <Add Money> inside the city." },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.AddMoneyAction), "Add Money" },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.SubtractMoneyKeyboardBinding)), "Subtract Money" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.SubtractMoneyKeyboardBinding)), "Hotkey to <Subtract Money> inside the city." },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.SubtractMoneyAction), "Subtract Money" },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AutomaticAddMoney)), "Automatic Add Money" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AutomaticAddMoney)),
-                    "When enabled [ ✓ ], City Watchdog checks the city balance while a city is loaded.\n" +
-                    "- If the balance is <below the threshold>, it adds enough to reach the threshold.\n" +
-                    "- It always adds at least the selected Automatic Money Amount.\n" +
-                    "- Manual money hotkeys (<[> or <]>) are recommended when you only need money occasionally."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AutomaticAddMoneyThreshold)), "Automatic Money Threshold" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AutomaticAddMoneyThreshold)),
-                    "If Automatic Add Money is enabled and the city balance falls below this value,\n" +
-                    "money is added until the city reaches at least this threshold."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AutomaticAddMoneyAmount)), "Automatic Money Amount" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AutomaticAddMoneyAmount)),
-                    "Minimum amount added each time Automatic Add Money triggers.\n" +
-                    "If more is needed to reach the threshold, City Watchdog adds the larger amount."
-                },
-
-                // --------------------------------------------------------------------
-                // City Start tab - Save Conversion
-                // --------------------------------------------------------------------
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ConfirmUnlimitedMoneySaveConversion)), "Unlimited Money Converter" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ConfirmUnlimitedMoneySaveConversion)),
-                    "<Make a Backup of city FIRST>.\n" +
-                    "Converts a city that started as Unlimited Money to a normal city with regular money challenges.\n" +
-                    "Enabling this unlocks the <[Convert Unlimited Money Save]> button when the loaded city is <Unlimited Money> type.\n" +
-                    "City Watchdog cannot undo this conversion.\n" +
-                    "If you have normal cities, do not worry about this; it is not needed."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ConvertUnlimitedMoneySave)), "Convert Unlimited Money Save City to Normal" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ConvertUnlimitedMoneySave)),
-                    "For cities started with <Unlimited Money>.\n" +
-                    "While that city is loaded, this converts the save to normal limited-money budgeting so the city has regular money challenges again.\n" +
-                    "Button is <disabled/greyed-out> unless the loaded city is an <Unlimited Money> type\n" +
-                    "and <Unlimited Money Converter> is ON [ ✓ ].\n" +
-                    "Make a backup save, and use at your own risk; City Watchdog cannot undo this conversion."
-                },
-
-                { m_Settings.GetOptionWarningLocaleID(nameof(CwdSettings.ConvertUnlimitedMoneySave)),
-                    "Convert this city from Unlimited Money to normal limited money?\n" +
-                    "Save a backup FIRST; City Watchdog cannot undo this.\n" +
-                    "Are you sure?"
-                },
 
                 // --------------------------------------------------------------------
                 // About tab
@@ -385,7 +285,7 @@ namespace CityWatchdog
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.VersionText)), "Version" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.VersionText)), "Current mod version." },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.OpenParadox)), "Paradox Mods" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.OpenParadox)), "Mochi's Paradox Mods" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.OpenParadox)), "Open the author's Paradox Mods page." },
 
                 // --------------------------------------------------------------------

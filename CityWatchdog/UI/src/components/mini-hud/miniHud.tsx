@@ -7,7 +7,6 @@ import { Tooltip } from "cs2/ui";
 import { playSelectSound } from "../../utils/uiSound";
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import {
-    disableCwdTooltips$,
     miniHudEnabled$,
     miniHudFavorites$,
     miniHudHideZero$,
@@ -88,7 +87,6 @@ export const MiniHud = () => {
     const savedHorizontalPositionY = useValue(miniHudHorizontalPositionY$);
     const savedVerticalPositionX = useValue(miniHudVerticalPositionX$);
     const savedVerticalPositionY = useValue(miniHudVerticalPositionY$);
-    const cwdTooltipsDisabled = useValue(disableCwdTooltips$);
     const activeGamePanel = useValue(game.activeGamePanel$);
     const activeGamePanelType = activeGamePanel?.__Type ?? "none";
     const isPhotoMode = activeGamePanelType == game.GamePanelType.PhotoMode;
@@ -447,9 +445,9 @@ export const MiniHud = () => {
                     ))}
                 </div>
                 {isDraggable && (
-                    cwdTooltipsDisabled
-                        ? openHandleButton
-                        : <Tooltip {...{ cwdBypass: true }} tooltip={openHandleTooltip}>{openHandleButton}</Tooltip>
+                  <Tooltip {...{ cwdBypass: true }} tooltip={openHandleTooltip}>
+                    {openHandleButton}
+                  </Tooltip>
                 )}
             </div>
         </div>

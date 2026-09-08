@@ -6,10 +6,14 @@ import { economyBudget, toolbarBottom } from "cs2/bindings";
 import { Unit, useLocalization, type Localization } from "cs2/l10n";
 import { useText } from "../shared/localization";
 import { Children, isValidElement, type CSSProperties, type ReactNode } from "react";
-import { moneyTooltipFontScale$, moneyTooltipMode$, moneyView$ } from "../../bindings/bindings";
+import {
+    moneyTooltipFontScale$,
+    moneyTooltipMode$,
+    moneyViewMode$,
+    moneyView$,
+} from "../../bindings/bindings";
 import styles from "./moneyView.module.scss";
 import {
-    formatTooltipMoneyValue,
     formatTooltipMoneyViewValue,
     getDisplayWholeValue,
     getNumericValue,
@@ -17,8 +21,8 @@ import {
     HOURS_PER_GAME_MONTH,
     MONEY_ICON,
     MONEY_TOOLTIP_MODE_COMPACT,
-    MONEY_TOOLTIP_MODE_FULL_DATA,
     MONEY_TOOLTIP_MODE_MINI,
+    MONEY_VIEW_MODE_MONTHLY,
 } from "./moneyViewShared";
 
 export const MoneyViewTooltipContent = ({ baseContent }: { readonly baseContent: ReactNode }) => {
@@ -26,27 +30,30 @@ export const MoneyViewTooltipContent = ({ baseContent }: { readonly baseContent:
     const text = useText();
 
     const moneyViewEnabled = useValue(moneyView$);
+    const moneyViewMode = useValue(moneyViewMode$);
     const moneyTooltipMode = useValue(moneyTooltipMode$);
     const moneyTooltipFontScale = useValue(moneyTooltipFontScale$);
 
     const hourlyNet = getNumericValue(useValue(toolbarBottom.moneyDelta$));
     const monthlyIncome = getNumericValue(useValue(economyBudget.totalIncome$));
 
-    // Normalize Budget expenses before net monthly income is calculated.
+    // Budget expenses are monthly and negative in the tooltip.
     const monthlyExpenses = -Math.abs(getNumericValue(useValue(economyBudget.totalExpenses$)));
-    const monthlyBalance = monthlyIncome + monthlyExpenses;
+    const monthlyNet = monthlyIncome + monthlyExpenses;
     const hourlyIncome = monthlyIncome / HOURS_PER_GAME_MONTH;
     const hourlyExpenses = monthlyExpenses / HOURS_PER_GAME_MONTH;
-
-    // Current total city money same as vanilla bottom toolbar.
-    const totalMoney = getNumericValue(useValue(toolbarBottom.money$));
 
     if (!moneyViewEnabled) {
         return <>{baseContent}</>;
     }
 
-    const compact = moneyTooltipMode !== MONEY_TOOLTIP_MODE_FULL_DATA;
     const mini = moneyTooltipMode === MONEY_TOOLTIP_MODE_MINI;
+    const selectedUnit = moneyViewMode === MONEY_VIEW_MODE_MONTHLY
+        ? Unit.IntegerPerMonth
+        : Unit.IntegerPerHour;
+
+    // Full + Mini show both units; Compact follows the toolbar unit.
+    const showBothUnits = moneyTooltipMode !== MONEY_TOOLTIP_MODE_COMPACT;
     const tooltipClassName = getTooltipRowsClassName(moneyTooltipMode);
     const tooltipValueSize = getTooltipValueSize(moneyTooltipFontScale);
     const tooltipStyle = {
@@ -66,7 +73,8 @@ export const MoneyViewTooltipContent = ({ baseContent }: { readonly baseContent:
                         label={text("MoneyViewTooltipIncome", "Income:")}
                         hourlyValue={hourlyIncome}
                         monthlyValue={monthlyIncome}
-                        compact={compact}
+                        selectedUnit={selectedUnit}
+                        showBothUnits={showBothUnits}
                         mode={moneyTooltipMode}
                     />
                     <MoneyViewTooltipGroup
@@ -74,7 +82,8 @@ export const MoneyViewTooltipContent = ({ baseContent }: { readonly baseContent:
                         label={text("MoneyViewTooltipExpenses", "Expenses:")}
                         hourlyValue={hourlyExpenses}
                         monthlyValue={monthlyExpenses}
-                        compact={compact}
+                        selectedUnit={selectedUnit}
+                        showBothUnits={showBothUnits}
                         mode={moneyTooltipMode}
                     />
                     <div className={styles.tooltipDivider} />
@@ -85,19 +94,11 @@ export const MoneyViewTooltipContent = ({ baseContent }: { readonly baseContent:
                 localization={localization}
                 label={text("MoneyViewTooltipNet", "Net:")}
                 hourlyValue={hourlyNet}
-                monthlyValue={monthlyBalance}
-                compact={compact}
+                monthlyValue={monthlyNet}
+                selectedUnit={selectedUnit}
+                showBothUnits={showBothUnits}
                 mode={moneyTooltipMode}
             />
-
-            {moneyTooltipMode === MONEY_TOOLTIP_MODE_FULL_DATA && (
-                <MoneyViewTooltipSingleValue
-                    localization={localization}
-                    label={text("MoneyViewTooltipTotal", "Total:")}
-                    value={totalMoney}
-                    mode={moneyTooltipMode}
-                />
-            )}
         </div>
     );
 };
@@ -125,8 +126,7 @@ export const isMoneyTooltip = (props: any): boolean => {
     return Boolean(props?.content) && containsIcon(props?.children, MONEY_ICON);
 };
 
-// Walk vanilla tooltip tree instead of querying generated CSS class names which might change.
-// Prevents patch issues - ID's money/population tooltip by the actual vanilla icon path.
+// Identify the vanilla money tooltip by its icon, not generated CSS names.
 const containsIcon = (node: ReactNode, icon: string): boolean => {
     if (!isValidElement(node)) {
         return false;
@@ -145,61 +145,45 @@ const MoneyViewTooltipGroup = ({
     label,
     hourlyValue,
     monthlyValue,
-    compact,
+    selectedUnit,
+    showBothUnits,
     mode,
 }: {
     readonly localization: Localization;
     readonly label: string;
     readonly hourlyValue: number;
     readonly monthlyValue: number;
-    readonly compact: boolean;
+    readonly selectedUnit: Unit;
+    readonly showBothUnits: boolean;
     readonly mode: number;
 }) => {
     return (
         <div className={styles.tooltipGroup}>
             <div className={styles.tooltipLabel}>{trimLabelPunctuation(label)}</div>
             <div className={styles.tooltipValueColumn}>
-                <MoneyViewTooltipValue
-                    localization={localization}
-                    value={hourlyValue}
-                    unit={Unit.IntegerPerHour}
-                    compact={compact}
-                    mode={mode}
-                />
-                <MoneyViewTooltipValue
-                    localization={localization}
-                    value={monthlyValue}
-                    unit={Unit.IntegerPerMonth}
-                    compact={compact}
-                    mode={mode}
-                />
-            </div>
-        </div>
-    );
-};
-
-const MoneyViewTooltipSingleValue = ({
-    localization,
-    label,
-    value,
-    mode,
-}: {
-    readonly localization: Localization;
-    readonly label: string;
-    readonly value: number;
-    readonly mode: number;
-}) => {
-    const displayValue = getDisplayWholeValue(value);
-    const tone = getSignedAmountTone(displayValue);
-    const formattedValue = formatTooltipMoneyValue(localization, displayValue);
-
-    return (
-        <div className={styles.tooltipGroup}>
-            <div className={styles.tooltipLabel}>{trimLabelPunctuation(label)}</div>
-            <div className={styles.tooltipValueColumn}>
-                <div className={`${styles.tooltipValueLine} ${getTooltipValueClassName(mode)} ${styles[tone]}`}>
-                    {formattedValue}
-                </div>
+                {showBothUnits ? (
+                    <>
+                        <MoneyViewTooltipValue
+                            localization={localization}
+                            value={hourlyValue}
+                            unit={Unit.IntegerPerHour}
+                            mode={mode}
+                        />
+                        <MoneyViewTooltipValue
+                            localization={localization}
+                            value={monthlyValue}
+                            unit={Unit.IntegerPerMonth}
+                            mode={mode}
+                        />
+                    </>
+                ) : (
+                    <MoneyViewTooltipValue
+                        localization={localization}
+                        value={selectedUnit === Unit.IntegerPerMonth ? monthlyValue : hourlyValue}
+                        unit={selectedUnit}
+                        mode={mode}
+                    />
+                )}
             </div>
         </div>
     );
@@ -209,20 +193,24 @@ const MoneyViewTooltipValue = ({
     localization,
     value,
     unit,
-    compact,
     mode,
 }: {
     readonly localization: Localization;
     readonly value: number;
     readonly unit: Unit;
-    readonly compact: boolean;
     readonly mode: number;
 }) => {
     const displayValue = getDisplayWholeValue(value);
     const tone = getSignedAmountTone(displayValue);
-    const formattedValue = formatTooltipMoneyViewValue(localization, displayValue, compact, unit);
 
-    return <div className={`${styles.tooltipValueLine} ${getTooltipValueClassName(mode)} ${styles[tone]}`}>{formattedValue}</div>;
+    // All tooltip modes keep the short M/B formatting for large values.
+    const formattedValue = formatTooltipMoneyViewValue(localization, displayValue, true, unit);
+
+    return (
+        <div className={`${styles.tooltipValueLine} ${getTooltipValueClassName(mode)} ${styles[tone]}`}>
+            {formattedValue}
+        </div>
+    );
 };
 
 const getTooltipValueClassName = (mode: number): string => {

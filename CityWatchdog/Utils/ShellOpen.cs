@@ -7,23 +7,23 @@
 // ================= </copyright> ======================
 
 // File: Utils/ShellOpen.cs
-// Version: 0.3.2
+// Version: 0.3.5
 // Purpose: File/folder opening helpers for CS2 Options UI buttons.
 // Based on River-Mochi shared CS2 utilities.
-
-namespace CS2Shared.RiverMochi
-{
     using System;
     using System.Diagnostics;
     using System.IO;
     using Colossal.Logging;
     using UnityEngine;
 
+namespace CS2Shared.RiverMochi
+{
     public static class ShellOpen
     {
         private static ILog? s_Log;
         private static string s_ModId = string.Empty;
         private static string s_ModTag = "[CS2Shared]";
+        private static readonly char[] s_ArgumentQuoteChars = { ' ', '\t', '"' };
 
         public static void Configure(ILog log, string modId, string modTag)
         {
@@ -253,7 +253,7 @@ namespace CS2Shared.RiverMochi
                 return "\"\"";
             }
 
-            return value.IndexOfAny(new[] { ' ', '\t', '"' }) >= 0
+            return value.IndexOfAny(s_ArgumentQuoteChars) >= 0
                 ? "\"" + value.Replace("\"", "\\\"") + "\""
                 : value;
         }

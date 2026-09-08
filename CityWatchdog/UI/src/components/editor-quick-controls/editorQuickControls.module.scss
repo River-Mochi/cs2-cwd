@@ -1,0 +1,103 @@
+// File: src/UI/src/components/editor-quick-controls/editorQuickControls.module.scss
+// Purpose: Cohtml-safe styling for the compact draggable Editor controls.
+
+.anchor {
+    position: absolute;
+    right: var(--screenPadding);
+    bottom: 82rem;
+    overflow: visible;
+    width: 214rem;
+    z-index: 1000;
+    pointer-events: auto;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    border-top-left-radius: 5rem;
+    border-top-right-radius: 5rem;
+    border-bottom-left-radius: 5rem;
+    border-bottom-right-radius: 5rem;
+    border-top-style: solid;
+    border-right-style: solid;
+    border-bottom-style: solid;
+    border-left-style: solid;
+    border-top-width: 1rem;
+    border-right-width: 1rem;
+    border-bottom-width: 1rem;
+    border-left-width: 1rem;
+    border-top-color: rgba(126, 221, 255, 0.58);
+    border-right-color: rgba(126, 221, 255, 0.58);
+    border-bottom-color: rgba(126, 221, 255, 0.58);
+    border-left-color: rgba(126, 221, 255, 0.58);
+    background-color: rgba(27, 45, 58, 0.88);
+    box-shadow: 0 3rem 11rem rgba(0, 0, 0, 0.38);
+    pointer-events: auto;
+}
+
+// Existing CWD panel opacity also controls this Editor panel.
+@mixin panelOpacity($name, $alpha) {
+    .opacity#{$name} {
+        background-color: rgba(27, 45, 58, $alpha);
+    }
+}
+
+@include panelOpacity(30, 0.30);
+@include panelOpacity(35, 0.35);
+@include panelOpacity(40, 0.40);
+@include panelOpacity(45, 0.45);
+@include panelOpacity(50, 0.50);
+@include panelOpacity(55, 0.55);
+@include panelOpacity(60, 0.60);
+@include panelOpacity(65, 0.65);
+@include panelOpacity(70, 0.70);
+@include panelOpacity(75, 0.75);
+@include panelOpacity(80, 0.80);
+@include panelOpacity(85, 0.85);
+@include panelOpacity(90, 0.90);
+@include panelOpacity(95, 0.95);
+@include panelOpacity(100, 1);
+
+.title {
+    height: 25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    color: #a9edff;
+    font-size: var(--fontSizeXS);
+    font-weight: 700;
+    letter-spacing: 0.7rem;
+    cursor: grab;
+    user-select: none;
+}
+
+.title:hover {
+    color: #ffffff;
+}
+
+.titleDragging {
+    color: #ffffff;
+    cursor: grabbing;
+}
+
+.controls {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-top: 4rem;
+    padding-right: 5rem;
+    padding-bottom: 5rem;
+    padding-left: 5rem;
+    pointer-events: auto;
+}
+
+.controls > * + * {
+    margin-left: 2rem;
+}
+
+// These source SVGs are black/dark; keep them white in Cohtml.
+.darkIcon {
+    filter: brightness(0) invert(1) opacity(0.86);
+}

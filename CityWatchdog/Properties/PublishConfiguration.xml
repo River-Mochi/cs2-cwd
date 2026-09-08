@@ -4,109 +4,83 @@
 <!--Name of the mod to display to players-->
 <DisplayName Value="City Watchdog" />
 <!--Short description of the mod-->
-<ShortDescription Value="Show/Hide notification icons, add/remove Money, set Milestones, Mini HUD, Better Tooltips." />
+<ShortDescription Value="Show/hide notification clutter with a Mini HUD, instant icon controls, road labels/arrows, Money+Population trends, extra city stats." />
 <!--Long description of the mod. Single line or multi line. Supports minimal markdown subset-->
 <!--LongDescription Value="This is a long description" /-->
 <LongDescription>
-#### City Watchdog organizes notification clutter, customizes city start options (e.g. milestones), and puts control of road names/arrows/districts/tooltips in your hands.
+### City Watchdog
 
-- visual comfort controls. you'll wonder how you've been playing without it :)
-- don't forget the Like button, top right, so search works and more people know about the mod.
+Clean up notification clutter and keep your city easier to read while you build.
 
-#### Display toggles
-- [i] button - Instant hide/show **ALL** vanilla mouse-over tooltips.
-- 1-click - show/hide 1-way road arrows.
-- 1-click - hide/show road name or district.
+#### Main features
+- **Mini HUD** — track the notification problems you care about and click an alert to jump through problem locations.
+- **Show All / Hide All** — instantly show or hide normal map notification icons.
+- **Presets 1 | 2** — save two custom notification checkbox layouts.
+- **Road controls** — show/hide road names, district names, and 1-way road arrows.
+- **[i] button** — instantly show/hide vanilla mouse-over tooltips.
+- **Bigger UI** — quick access to the game's interface scaling without launching Developer Mode.
+- **Extra city info** — useful money trends and additional population stats.
 
-#### Features
-- **Mini HUD**: custom tracker list for any problem; repeat clicking the icon will cycle and jump to all map spots.
-- **Notifications**: **Instant on/off** toggle for all problem alert icons (icons over buildings or cars).
-- Reduce visual stress while building (does not fix city problems for you).
-- Open full panel from the top-left button.
+City Watchdog helps you see and manage city information — it does not fix city problems for you.
 
-#### City Start Options
-- Start city with any Milestone. Trains now! Set Initial money if you want Less for a challenge or more.
-- Quick handy info: hover over bottom menu money or population tooltips for instant info chart (faster than opening game's Info view).
-- Convert saves from Unlimited Money type to normal Limited Money.
-
-**Hotkeys**
-- Shift+N = open/close panel (same as clicking on Top Left icon).
-- N    = show/hide problem alert icons (same as clicking Show/Hide Icons button).
-- [    = Add Money, hold to repeat.
-- ]    = Subtract Money, hold to repeat.
-
-
-### Important Notes
-- Unlimited Money save: make a backup before converting the save. Mod cannot undo that conversion. Check mod's "show instructions".
-- Install Achievement Fixer mod if you want Achievements while using mods (was removed from this mod).
-- Good for performance: lightweight for daily use.
-
-I hope you enjoy the new features!
+#### Good to know
+- Blue Stars are Mini HUD favorites and are separate from Presets 1 | 2.
+- Open the main panel from the top-left paw icon.
+- Safe for city saves and safe to remove. No Harmony patches.
 
 ### Support and feedback
-- Feedback is welcome through GitHub or Discord link buttons on the right.
-- please give a Like so it's easier for people to find the mod. Thank you! no donations needed, just a Like is enough.
-- 15 languages: Hello, Hallo, Hola, Bonjour, Ciao, こんにちは, 안녕하세요, Cześć, Olá, Olá, สวัสดี, Merhaba, Xin chào, 你好, 你好
-- If anyone can make better thumbnail or screenshots, please let me know.
-- Mod is safe for city saves and safe to remove. Does not use Harmony patch, safer/more compatible.
+If City Watchdog helps you, clicking LIKE makes it easier for other players to find.
 
+Feedback is welcome through the GitHub or Discord buttons on the right.
 
-### New Bigger Scale button
-- Stays on until you click it off, even if CWD is removed, because it uses the game's real interface setting.
-- To reset the interface scale to normal, simply turn this button/toggle off before uninstalling the mod.
-- Or start the game once with --developerMode, then go to Options > Interface and turn off Interface Scaling (dev) checkbox.
-
-### Thanks to all supporters and testers
+### Thanks
 - River Mochi - main author
 - yenyang - locale tech feedback
-- Notices inspired by the orig. City Controller by Mbyron26.
-- Money View inspired by earlier Show Text by DanielNZ.
+- Notices inspired by the original City Controller by Mbyron26
+- Money View inspired by earlier Show Text by DanielNZ
 - Dorkington - tester/feature suggestion
-- Brainium, Flightech, SonNathan - testers
+- Nukprach, Dataknase, Brainium, Flightech, SonNathan - testers
 - UnMaestro - testing, German editor
 - gagaxm - testing, French editor
 - Obelix - testing, Portuguese editor
-- Thumbnail photograph by Maryia Shedava at Mont Saint-Michel in Normandy, France:
+
+Thumbnail photograph by Maryia Shedava at Mont Saint-Michel in Normandy, France:
 https://unsplash.com/photos/a-dog-poses-in-front-of-a-distant-castle-bEpjaU_CTcM
 
+**15 languages supported:** English, Deutsch, Español, Français, Italiano, 日本語, 한국어, Polski, Português Brasileiro, Português Portugal, ไทย, Türkçe, Tiếng Việt, 简体中文, 繁體中文.
 
 tags: Visual, UI UX tool tips,UI organize icons, Mini HUD view
-
 </LongDescription>
 <!--Thumbnail-->
-<Thumbnail Value="Properties/Thumbnail-dog-city04.jpg" />
+<Thumbnail Value="Properties/Thumbnail-dog-city01.jpg" />
 <!--Screenshot, can be set multiple times-->
 <Screenshot Value="Properties/image10-Notifications1.jpg" />
 <Screenshot Value="Properties/image11-Mini-HUD.jpg" />
 <Screenshot Value="Properties/image12-Before.jpg" />
 <Screenshot Value="Properties/image15-MinimalPanel.jpg" />
-<Screenshot Value="Properties/image30-HotKeys-ToolTipViewer.jpg" />
 <Screenshot Value="Properties/image35-Money.jpg" />
-<Screenshot Value="Properties/image40-MiniHUD-Options.jpg" />
-<Screenshot Value="Properties/image50-Milestone-Money.jpg" />
 <!--Tag, can be set multiple times-->
 <Tag Value="Code Mod" />
 <!--Link to the forum post where the mod can be discussed-->
 <ForumLink Value="https://forum.paradoxplaza.com/forum/threads/city-watchdog.1924169/" />
 <!--Version of the mod-->
-<ModVersion Value="1.3.0" />
+<ModVersion Value="1.3.5" />
 <!--Recommended version of the base game to use the mod-->
 <GameVersion Value="1.6.*" />
 <!--Dependency for the mod, can be set multiple times-->
 <Dependency Id="" DisplayName="" />
 <!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 <ChangeLog>
-- Bigger UI toggle — enables vanilla interface scaling (with no dev mode launch flag), synced with Options ☑; icon in title bar next to the paw.
-- Whole-row click-to-jump. before, click was limited to the row count number.
-- Presets 1 | 2 — hold-to-save / click-to-load ☑ only the checkboxes you selected; this is separate from the Show/Hide Icons button, and Blue Stars.
-- you now have 4 choices for Notification Icons: all problem icons On/Off or Preset 1 or 2 (for more custom action).
-- Population tooltip — adds unemployment % and homeless has both count + rate
-- When collapsed, Sort button now opens panel in the current sort view.
-- Renamed: City Start tab replaces Milestone tab name.
-- Show/Hide Icons label no longer spills over in long languages.
-- new Defaults: main panel opacity 80%; Mini starts horizontal; Money View trends = Monthly.
+- City Watchdog is now focused on notifications, visual comfort, Mini HUD, tooltips, and extra city information.
+- Budget/Milestone tools moved to the new Budget + Milestones mod.
+- Added Bigger UI button — quick access to the game's own interface scaling [x] toggle (without need for Developer Mode).
+- Added Presets 1 | 2 — hold to save and click to load two notification checkbox layouts. Blue Stars remain separate Mini HUD favorites.
+- Whole notification rows can now be clicked to jump to the problem location.
+- Population tooltip now includes unemployment plus homeless count and rate.
+- Improved collapsed-panel sorting and updated defaults: 80% panel opacity, horizontal Mini HUD, and Monthly Money Trends.
 </ChangeLog>
 <!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon, buymeacoffee, kofi, crowdin, gitlab-->
-<ExternalLink Type="github" Url="https://github.com/River-Mochi/CS2-CityWatchdog" />
 <ExternalLink Type="discord" Url="https://discord.gg/gwXgvtyhjc" />
+<ExternalLink Type="github" Url="https://github.com/River-Mochi/CS2-CityWatchdog" />
+
 </Publish>

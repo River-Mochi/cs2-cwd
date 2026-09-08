@@ -16,9 +16,9 @@ It can hide/show vanilla alert icons, road labels, district labels, 1-way road a
 | **Jump to problem** | Click active counts or Mini HUD icons to jump to matching buildings/problems |
 | **Road + district labels** | Hide/show road names, district names, or 1-way arrows while building |
 | **Tooltip control** | Hide/show game hover tooltips, plus optional City Watchdog panel tooltips |
+| **Bigger Game UI** | Quickly toggle the game's Interface Scaling option when you want bigger panels and text |
 | **Bottom-bar info** | Extra money and population details on hover, without opening Info Views |
-| **Money helpers** | Add/subtract cash with keys, optional auto-refill, starting money, and milestone setup |
-| **Save converter** | Convert an Unlimited Money save to normal budgeting if needed |
+| FUTURE coming soon **Optional Day / Night** | CWD title-bar instant Day/Night flip button appears when the separate **Day-Night No Flash** mod is installed (link TBD) |
 
 ## Mini HUD Quick Start
 
@@ -28,7 +28,7 @@ The Mini HUD can show either:
 - **Favorites**: alert rows you marked with the **blue star** in the main panel.
 
 The Quick Start button sets the Mini HUD to:
-- Currated blue-star rows pre-selected.
+- Curated blue-star rows pre-selected.
 - Favorites mode, 5 icons, vertical layout, draggable placement, 100% size, dark panel
 - zero-count icons hidden
 
@@ -38,7 +38,6 @@ The Quick Start button sets the Mini HUD to:
 - The optional **Leveling Building** row is a positive status icon, not a normal problem alert.
 - Toggle All skips optional rows like Leveling Building, so they stay manual.
 - Mini HUD and active counts are for finding problems faster, not changing city simulation.
-- Back up before converting an Unlimited Money save. The conversion is not reversible.
 
 ## Hotkeys
 
@@ -47,10 +46,18 @@ Default hotkeys:
 - **Shift + N** — open/close the main panel
 - **N** — toggle normal alert icons on/off
 - **\\** — hide/show road names
-- **[** — add money
-- **]** — subtract money
+- **Shift + \\** — hide/show game hover tooltips
 
-Hotkeys can be changed in the game Options menu.
+Any Hotkey can be changed in the game Options menu.
 
-## Supported Languages 
- English, French, Spanish, German, Italian, Japanese, Korean, Polish, Portuguese (Brazil), Portuguese (Portugal), Simplified Chinese, Traditional Chinese, Thai, Vietnamese, Turkish.
+## Map Editor helpers
+
+The full notification panel stays city-only. In Editor mode, your same **Open/Close panel** hotkey opens a compact **Editor Quick Controls** instead, with:
+
+- **Bigger Game UI** — turn Interface Scaling on or off
+- **Road Names** — hide/show map road labels
+- **1-way Arrows** — show/hide directions without opening a road tool
+- **All Game Tooltips** — hide/show hover tooltips
+
+## Supported Languages
+English, French, Spanish, German, Italian, Japanese, Korean, Polish, Portuguese (Brazil), Portuguese (Portugal), Simplified Chinese, Traditional Chinese, Thai, Vietnamese, Turkish.

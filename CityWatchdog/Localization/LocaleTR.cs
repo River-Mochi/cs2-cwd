@@ -27,347 +27,250 @@ namespace CityWatchdog
             IList<IDictionaryEntryError> errors,
             Dictionary<string, int> indexCounts)
         {
-            string title = Mod.ModName + " (Şehir Gözcüsü)";
 
             Dictionary<string, string> entries = new()
             {
                 // --- Mod title ---
-                { m_Settings.GetSettingsLocaleID(), title },
+                { m_Settings.GetSettingsLocaleID(), Mod.ModName },
 
                 // --- Tabs ---
-                { m_Settings.GetOptionTabLocaleID(CwdSettings.kActions), "Eylemler" },
-                { m_Settings.GetOptionTabLocaleID(CwdSettings.kMiniHudTab), "Mini-HUD" },
-                { m_Settings.GetOptionTabLocaleID(CwdSettings.kMoneyTab), "Şehir Başlangıcı" },
+                { m_Settings.GetOptionTabLocaleID(CwdSettings.kActions), "Ana" },
+                { m_Settings.GetOptionTabLocaleID(CwdSettings.kMiniHudTab), "Mini HUD" },
+                { m_Settings.GetOptionTabLocaleID(CwdSettings.kHotkeys), "Kısayollar" },
                 { m_Settings.GetOptionTabLocaleID(CwdSettings.kAbout), "Hakkında" },
 
                 // --- Groups, ordered by Options menu location ---
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutUsage), "KULLANIM" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kNotifications), "Bildirimler" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMoneyViewGroup), "Şehir içi bilgi" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMiniHudGroup), "Mini HUD uyarıları" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMilestone), "YENİ ŞEHİR BAŞLANGICI" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMoney), "Para" },
-                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kSaveConversion), "Sınırsız kaydı çevir" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kNotifications), "Ana bildirim paneli" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kHotkeyActions), "Ana panel ve görünüm" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMoneyViewGroup), "Menü çubuğu trendleri" },
+                { m_Settings.GetOptionGroupLocaleID(CwdSettings.kMiniHudGroup), "Mini HUD bildirimleri" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutInfo), "" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutLinks), "" },
                 { m_Settings.GetOptionGroupLocaleID(CwdSettings.kAboutDiagnostics), "TANI" },
 
                 // --------------------------------------------------------------------
-                // Actions tab - Usage
+                // Main tab - Usage
                 // --------------------------------------------------------------------
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ShowUsage)), "Talimatları göster" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ShowUsage)), "Aşağıdaki kullanım talimatlarını gösterir veya gizler." },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ShowUsage)), "Aşağıdaki talimatları gösterir veya gizler." },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.UsageText)),
-                    "A. Ana paneli açmak için sol üstteki pati simgesini kullan veya Shift+N bas.\n" +
-                    "<Görünüm düğmeleri>\n" +
-                    "1. Başlık simgesi: City Watchdog ipuçlarını göster/gizle.\n" +
-                    "\n" +
-                    "2. **[i]** düğmesi: binalar, vatandaşlar, araçlar ve alt menü dahil oyunun <TÜM> üzerine-gelme ipuçlarını göster/gizle.\n" +
-                    "3. Yol düğmesi: yol adlarını göster/gizle. Kısayol: \\.\n" +
-                    "4. Bölge düğmesi: bölge adlarını göster/gizle.\n" +
-                    "5. Yol oku düğmesi: tek yön oklarını aç/kapat (yol adlarını da gizler).\n" +
-                    "\n" +
-                    "<Bildirim uyarıları>\n" +
-                    "1. Sıralama: A→Z, Z→A, sadece aktif liste.\n" +
-                    "2. <[0/62]> = görünür simgeler/toplam. Tıkla: tüm satırları aç/kapat.\n" +
-                    "3a. [Simgeleri göster] tüm sorun uyarı simgelerini hemen kapatır/açar.\n" +
-                    "3b. Hazır ayarlar [1 | 2]: yüklemek için tıkla; mevcut kutuları kaydetmek için 1 saniye basılı tut.\n" +
-                    "3c. Bir simgeyi gizlemek şehir sorununu çözmez.\n" +
-                    "\n" +
-                    "<Yardımcılar>\n" +
-                    "1. Para ekle / çıkar: <Para kısayol tutarı> için varsayılan <[ veya ]> tuşlarını kullan.\n" +
-                    "2. Otomatik para, şehir paran ayarladığın sınırın altına düşünce para ekler.\n" +
-                    "3. Sınırsız Para kaydını çevirme sadece o şekilde başlayan şehirler içindir ve <geri alınamaz>.\n" +
-                    "\n" +
-                    "<Alt menü ipuçları>\n" +
-                    "Para Görünümü, para veya nüfus üstüne gelince eğilim gibi ek bilgiler gösterir.\n" +
-                    "\n" +
-                    "<Özel kilometre taşı>\n" +
-                    "Şehir Başlangıcı, bir şehri yüklemeden veya başlatmadan önce başlangıç parasını ya da kilometre taşlarını ayarlar."
+                    "<Şehir modu>\n" +
+                    "Sol üstteki pati simgesine tıkla veya Shift+N ile ana paneli aç.\n" +
+                    "Paneli başlık çubuğundan sürükle. Okla daralt veya genişlet.\n" +
+                    "<Bildirimler>\n" +
+                    "Simgeleri Göster ile uyarıları gizle/göster. Önayar 1/2: yüklemek için tıkla; kaydetmek için 1 saniye basılı tut.\n" +
+                    "<Trendler>\n" +
+                    "Nüfus + Para trendlerini ve alt menü araç ipuçlarındaki ekstra bilgileri aç.\n" +
+                    "<Editör>\n" +
+                    "Editörde Shift+N küçük City Watchdog Editor çubuğunu açar."
                 },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.UsageText)), "" },
 
                 // --------------------------------------------------------------------
-                // Actions tab - Notifications
+                // Main tab - Notifications
                 // --------------------------------------------------------------------
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleNotificationsKeyboardBinding)), "Uyarı simgelerini değiştir" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleNotificationsKeyboardBinding)), "Bildirim simgelerini aç/kapat" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleNotificationsKeyboardBinding)),
-                    "Oyundaki <[SİMGELERİ GÖSTER]> düğmesiyle aynı iş için <kısayol>.\n" +
-                    "Tüm sorun uyarı simgelerini hemen gösterir veya gizler."
+                    "Oyundaki <[SİMGELERİ GÖSTER]> düğmesiyle aynı işlev için <kısayol>.\n" +
+                    "Tüm sorun simgelerini anında gösterir veya gizler.\n" +
+                    "**Yalnızca ŞEHİR modu.**"
                 },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationsAction), "Sorun uyarı simgelerini hemen göster/gizle" },
+                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationsAction), "Sorun simgelerini anında göster/gizle" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleNotificationPanelKeyboardBinding)), "Uyarı panelini aç/kapat" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleNotificationPanelKeyboardBinding)), "Bildirim panelini aç/kapat" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleNotificationPanelKeyboardBinding)),
-                    "Şehirdeki <uyarı panelini>\n" +
-                    "açmak veya kapatmak için <kısayol>.\n" +
-                    "Sol üst simgeye tıklamakla aynıdır."
+                    "Şehirde <bildirim panelini> açıp kapatan\n" +
+                    "<kısayol>.\n" +
+                    "Sol üstteki City Watchdog simgesiyle aynı işlev.\n" +
+                    "**EDİTÖRDE Editör Hızlı Kontrollerini açar.**"
                 },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationPanelAction), "Uyarı panelini aç/kapat" },
+                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleNotificationPanelAction), "Bildirim panelini aç/kapat" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.PanelButtonsOnlyStart)), "Sadece düğmelerle başla" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.PanelButtonsOnlyStart)), "Ana panel: 1 satıra daraltılmış aç" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.PanelButtonsOnlyStart)),
-                    "Açıkken [ ✓ ], City Watchdog önce küçük sadece-düğme görünümünde açılır.\n" +
-                    "Tam panel için başlık oku veya satır sayacı düğmesini kullan."
+                    "Açıkken [ ✓ ], City Watchdog önce yalnızca 1 satır düğme gösterir.\n" +
+                    "Tam paneli açmak için başlık oku veya [0/62] düğmesini kullan."
+                },
+
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.DisableCwdTooltips)), "City Watchdog ipuçlarını kapat" },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.DisableCwdTooltips)),
+                    "City Watchdog ana panelindeki çoğu ipucunu gizler.\n" +
+                    "Buradan tekrar açabilir veya başlık çubuğundaki pati simgesine tıklayabilirsin.\n" +
+                    "Yalnızca City Watchdog'u etkiler. Daha sade ve daha az ipuçlu bir panel isteyenler için kullanışlıdır."
                 },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleRoadNamesKeyboardBinding)), "Yol adlarını gizle/göster" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleRoadNamesKeyboardBinding)),
-                    "<Kısayol> ile temel oyunun yol adlarını hemen gizle/göster.\n" +
-                    "City Watchdog panelindeki Yol Adı simgesiyle aynı."
+                    "Oyunun yol adlarını anında gizlemek veya göstermek için <kısayol>.\n" +
+                    "City Watchdog yol adı simgesiyle aynı işlev.\n" +
+                    "**EDİTÖR + ŞEHİR modunda çalışır.**"
                 },
                 { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleRoadNamesAction), "Yol adlarını gizle/göster" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleAllTooltipsKeyboardBinding)), "Tüm üzerine-gelme ipuçlarını kapat" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ToggleAllTooltipsKeyboardBinding)), "Tüm oyun araç ipuçlarını kapat" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ToggleAllTooltipsKeyboardBinding)),
-                    "Binalar, vatandaşlar, araçlar ve alt simgeler dahil oyunun TÜM üzerine-gelme ipuçlarını gizle/göster <kısayolu>.\n" +
-                    "<City Watchdog para/nüfus açılır pencereleri açık kalır>; onları Para Görünümü kontrol eder.\n" +
-                    "City Watchdog panelindeki [i] simgesiyle aynı."
+                    "Binalar, vatandaşlar, araçlar ve alt menü simgeleri dahil oyundaki TÜM fare üstü araç ipuçlarını gizleyip gösteren <kısayol>.\n" +
+                    "Bu [x], City Watchdog panelindeki [i] simgesiyle eşzamanlıdır.\n" +
+                    "City Watchdog'un kendi araç ipuçlarını etkilemez.\n" +
+                    "**EDİTÖR + ŞEHİR modunda çalışır.**"
                 },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleAllTooltipsAction), "Oyun üzerine-gelme ipuçlarını gizle/göster" },
+                { m_Settings.GetBindingKeyLocaleID(CwdSettings.ToggleAllTooltipsAction), "Tüm oyun araç ipuçlarını gizle/göster" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.InterfaceScaling)), "Daha büyük oyun arayüzü" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.InterfaceScaling)),
-                    "Açıldığında [ ✓ ], <tüm oyun arayüzü> büyür — oyun ve mod panelleri.\n" +
-                    "<--developerMode> başlatma parametresi olmadan oyunun <Arayüz Ölçekleme> seçeneğini kullanır.\n" +
-                    "Bu [x] kutusu, City Watchdog başlık çubuğundaki ölçek düğmesiyle eşitlenir.\n" +
-                    "Yalnızca metin için: Seçenekler > Arayüz > <Metin Ölçekleme>.\n" +
+                    "Açıkken [ ✓ ], <tüm oyun arayüzü> büyür — oyun + mod panelleri.\n" +
+                    "<Interface Scaling> seçeneğini <--developerMode> olmadan kullanır.\n" +
+                    "Bu [x], City Watchdog başlık çubuğundaki ölçek düğmesiyle eşzamanlıdır.\n" +
+                    "Yalnızca metin için: Seçenekler > Arayüz > <Metin Ölçeği>.\n" +
                     "City Watchdog kaldırılsa bile sen kapatana kadar açık kalır.\n" +
-                    "- Kaldırmadan önce kapatırsan normal boyuta döner.\n" +
-                    "- Ya da oyunu bir kez <--developerMode> ile açıp Seçenekler > Arayüz > Arayüz Ölçekleme (dev) seçeneğini kapat."
+                    "- Kaldırmadan önce kapat, normal boyuta dönsün.\n" +
+                    "- Ya da oyunu bir kez <--developerMode> ile açıp Interface Scaling (dev) seçeneğini kapat."
                 },
 
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MainPanelOpacity)), "Ana panel opaklığı" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MainPanelOpacity)), "CWD panel saydamlığı" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MainPanelOpacity)),
-                    "Ana bildirim panelinin arka plan şeffaflığını ayarlar.\n" +
-                    "Düşük değerler daha şeffaf, yüksek değerler daha koyu ve opaktır."
+                    "Arka plan saydamlığını ayarlar.\n" +
+                    "**City Watchdog ana paneli ve Editör paneli için geçerli.**\n" +
+                    "Düşük = daha saydam. Yüksek = daha koyu ve dolu."
                 },
 
                 // --------------------------------------------------------------------
-                // Actions tab - In-City Info Viewer
+                // Main tab - In-City Info Viewer
                 // --------------------------------------------------------------------
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyView)), "Para eğilimleri + nüfus ipuçları" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyView)), "Nüfus + Para trendleri" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyView)),
-                    "<Önerilir>\n" +
-                    "Alt menü: <para ve nüfus oklarında> eğilim değerleri gösterir.\n" +
-                    "Hafif üzerine-gelme özelliği <sadece görüntü>;\n" +
-                    "oyun Bilgi panelini açmaktan daha hızlı olabilir."
+                    "<Açılması önerilir>\n" +
+                    "Alt menüde <para ve nüfus oklarının> yanında trend değerlerini gösterir.\n" +
+                    "Hafif bir <yalnızca gösterim> özelliğidir.\n" +
+                    "Oyunun bilgi görünümünü açma ihtiyacını azaltır."
                 },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyViewMode)), "Para Görünümü sıklığı" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyViewMode)), "Görünüm sıklığı" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyViewMode)),
-                    "Alt çubuk eğilimleri için saatlik veya aylık değer seç.\n" +
-                    "Aylık, gelir eksi gider ve 24 saat nüfus tahmini kullanır."
+                    "Alt çubuk trendlerinin para ve nüfus için saatlik mi aylık mı gösterileceğini seç.\n" +
+                    "Aylık para = gelir eksi gider; nüfus = 24 saatlik tahmin."
                 },
                 { m_Settings.GetOptionLocaleID("MoneyViewModeHourly"), "Saatlik (/h)" },
                 { m_Settings.GetOptionLocaleID("MoneyViewModeMonthly"), "Aylık (/mo)" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyTooltipMode)), "Para ipucu stili" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyTooltipMode)), "Araç ipucu stili" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyTooltipMode)),
-                    "Para ipucunda ne kadar detay olacağını seç.\n" +
-                    "Kompakt = ilk kurulum varsayılanı.\n" +
-                    "<Küçük> sadece /mo ve /h için 2 net değer gösterir.\n" +
-                    "<Kompakt> büyük sayıları kısaltır (15.21M gibi).\n" +
-                    "<Tam veri> uzun değerleri ve toplamları gösterir."
+                    "Para araç ipucunun ne kadar ayrıntı göstereceğini seç.\n" +
+                    "<Mini> yalnızca Net değeri /h ve /mo ile gösterir.\n" +
+                    "<Kompakt> Gelir, Gider ve Net'i yalnızca seçilen /h veya /mo biriminde gösterir.\n" +
+                    "<Tam veri> Gelir, Gider ve Net'i hem /h hem /mo gösterir."
                 },
-                { m_Settings.GetOptionLocaleID("MoneyTooltipModeMini"), "Küçük" },
+
+                { m_Settings.GetOptionLocaleID("MoneyTooltipModeMini"), "Mini" },
                 { m_Settings.GetOptionLocaleID("MoneyTooltipModeCompact"), "Kompakt" },
                 { m_Settings.GetOptionLocaleID("MoneyTooltipModeFullData"), "Tam veri" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MoneyTooltipFontScale)), "Para yazı boyutu" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MoneyTooltipFontScale)),
-                    "Para Görünümü sayılarının <yazı boyutunu> ayarlar.\n" +
+                    "Para araç ipucu sayıların <yazı boyutunu> ayarlar.\n" +
                     "Oyun varsayılanı = 100%\n" +
                     "<Mod varsayılanı = 120%>\n" +
-                    "Ekranın altındaki Para üstüne gel.\n" +
-                    "Küçük ipuçlarını okumakta zorlanan oyuncular için."
+                    "Ekranın altındaki Paranın üstüne gel.\n" +
+                    "Küçük araç ipuçlarını okumakta zorlanan oyuncular için."
                 },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.PopulationTooltipFontScale)), "Nüfus yazı boyutu" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.PopulationTooltipFontScale)),
-                    "Nüfus sayılarının <yazı boyutunu> ayarlar.\n" +
+                    "Nüfus araç ipucu sayıların <yazı boyutunu> ayarlar.\n" +
                     "Oyun varsayılanı = 100%\n" +
                     "<Mod varsayılanı = 120%>\n" +
-                    "Ekranın altındaki Nüfus üstüne gel."
+                    "Ekranın altındaki Nüfusun üstüne gel."
                 },
 
                 // --------------------------------------------------------------------
                 // Mini-HUD tab - Mini HUD Notifications
                 // --------------------------------------------------------------------
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudEnabled)), "Mini HUD" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudEnabled)), "Mini HUD göster" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudEnabled)),
-                    "Önemli uyarı sayaçlarıyla küçük bir HUD gösterir.\n" +
-                    "Tam paneli açmadan hızlı uyarı şeridi olarak kullan.\n" +
-                    "Bir simgeye tıklayınca uygun soruna gider.\n" +
-                    "Aynı simgeye basmaya devam ederek sorunlar arasında gezer."
+                    "Küçük bir HUD paneli gösterir.\n" +
+                    "Tam City Watchdog panelini açmadan veya şehri simgeyle doldurmadan hızlı uyarı şeridi olarak kullan.\n" +
+                    "Bir simgeye tıklayınca soruna gider. Tekrar tıklayarak diğer noktaları dolaş.\n" +
+                    "**============================**\n" +
+                    "Bir kullanım örneği:\n" +
+                    "1. Ana panelden normal bildirim simgelerini kapat.\n" +
+                    "2. Mini HUD'ı açıp yalnızca 5 veya 10 favoriyi göster.\n" +
+                    "3. Tam panelde takip etmek istediğin satırlara **Mavi Yıldız** koy.\n" +
+                    "4. Mini HUD bu listeden en yüksek 5 veya 10 güncel değeri gösterir.\n" +
+                    ""
                 },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ApplyMiniHudRecommendedPreset)), "Tıkla: hızlı başlangıç" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ApplyMiniHudRecommendedPreset)), "Tıkla - Hızlı Başlangıç" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ApplyMiniHudRecommendedPreset)),
                     "Mini HUD için <hızlı başlangıç> uygular:\n" +
-                    "Bir **başlangıç mavi yıldız favorileri** seti ekler.\n" +
-                    "Favoriler modunda Mini HUD, **mavi yıldız** listendeki en yüksek 5 veya 10 güncel sayıyı gösterir.\n" +
-                    "City Watchdog panelinde **mavi yıldızları** ekle/kaldır.\n" +
-                    "Ayarlar: Favoriler, 5 ikon, yatay, sürüklenebilir, %100, koyu panel ve sıfır sayıları gizler.\n" +
-                    "Bu ayarları sıfırlamak için Hızlı başlangıcı istediğin zaman yeniden çalıştır."
+                    "Bir **başlangıç Mavi Yıldız listesi** içerir.\n" +
+                    "Favoriler modunda listedeki en yüksek 5 veya 10 güncel değeri gösterir.\n" +
+                    "City Watchdog panelinde **Mavi Yıldız** ekle veya kaldır.\n" +
+                    "Ayarlar: Favoriler, 5 simge, yatay, sürüklenebilir, %100, koyu panel, sıfırları gizle.\n" +
+                    "İstediğinde tekrar çalıştırıp sıfırla."
                 },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudMode)), "Mini panel modu" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudMode)), "Mini HUD modu" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudMode)),
-                    "Mini panelin hangi uyarı satırlarını kullanacağını seç.\n" +
-                    "**En yüksek sayılar** en yüksek güncel sayıları gösterir.\n" +
-                    "**Favoriler** ana City Watchdog panelindeki **mavi yıldız** satırlarını kullanır.\n" +
+                    "Mini HUD'ın hangi uyarı satırlarını kullanacağını seç.\n" +
+                    "**En aktif** en yüksek güncel değerleri gösterir.\n" +
+                    "**Favoriler** ana panelde **Mavi Yıldız** olan tüm satırları kullanır.\n" +
                     "İstediğin kadar favori seçebilirsin,\n" +
-                    "ama mini panel bu **mavi yıldız** listesinden sadece en yüksek 5 veya 10 taneyi gösterir."
+                    "ama Mini HUD yalnızca en yüksek 5 veya 10 değeri gösterir."
                 },
-                { m_Settings.GetOptionLocaleID("MiniHudModeTopActive"), "En yüksek uyarılar" },
+                { m_Settings.GetOptionLocaleID("MiniHudModeTopActive"), "En aktif uyarılar" },
                 { m_Settings.GetOptionLocaleID("MiniHudModeFavorites"), "Favoriler" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudItemCount)), "Simge sayısı" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudItemCount)), "Mini HUD kaç bildirim simgesi göstersin seç." },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudItemCount)), "Mini HUD'ın aynı anda kaç bildirim simgesi göstereceğini seç." },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudScale)), "Simge boyutu" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudScale)),
-                    "Mini HUD simgeleri ve sayıları ölçekler.\n" +
-                    "90% = kompakt. 100% = varsayılan. Daha görünür için 130%’a kadar."
+                    "Mini HUD simgelerini ve sayılarını ölçekler.\n" +
+                    "%90 = küçük. %100 = varsayılan.\n" +
+                    "Daha görünür olması için %130'a kadar çıkar.\n" +
+                    "Daha küçük ve az dikkat çekici olması için %90."
                 },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudOrientation)), "Yön" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudOrientation)), "Satır veya sütun seç." },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudOrientation)), "Mini HUD simgelerinin satır mı sütun mu olacağını seç." },
                 { m_Settings.GetOptionLocaleID("MiniHudOrientationHorizontal"), "Yatay" },
                 { m_Settings.GetOptionLocaleID("MiniHudOrientationVertical"), "Dikey" },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPlacement)), "HUD konumu" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudPlacement)),
-                    "Mini HUD nerede görünsün seç.\n" +
-                    "Sürüklenebilir, şehir arayüzünde taşımanı sağlar."
+                    "Mini HUD'ın nerede görüneceğini seç.\n" +
+                    "Sürüklenebilir seçeneği şehir arayüzünde serbestçe taşımanı sağlar."
                 },
                 { m_Settings.GetOptionLocaleID("MiniHudPlacementTopCenter"), "Üst orta" },
-                { m_Settings.GetOptionLocaleID("MiniHudPlacementTopRight"), "Üst sağ" },
+                { m_Settings.GetOptionLocaleID("MiniHudPlacementTopRight"), "Sağ üst" },
                 { m_Settings.GetOptionLocaleID("MiniHudPlacementDraggable"), "Sürüklenebilir" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPanelStyle)), "Koyu veya cam stil" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPanelStyle)), "Koyu veya Cam stil" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudPanelStyle)),
                     "Mini HUD arka plan stilini seç.\n" +
-                    "Cam panel saydamdan beyaz buğuya gider; koyulaşmaz.\n" +
-                    "Daha koyu oyun tarzı HUD için Koyu panel kullan."
+                    "Cam, şeffaftan bulutlu beyaza gider; koyulaşmaz.\n" +
+                    "Daha koyu oyun tarzı için Koyu paneli kullan."
                 },
                 { m_Settings.GetOptionLocaleID("MiniHudPanelStyleDark"), "Koyu panel" },
                 { m_Settings.GetOptionLocaleID("MiniHudPanelStyleGlass"), "Cam panel" },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPanelOpacity)), "Arka plan opaklığı" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudPanelOpacity)), "Mini panel saydamlığı" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudPanelOpacity)),
-                    "Mini HUD arka plan şeffaflığını ayarlar.\n" +
-                    "Düşük = daha şeffaf. Yüksek = daha dolu.\n" +
-                    "Cam beyazlaşır. Koyu daha koyu/dolu olur."
+                    "Mini HUD saydamlığını ayarlar.\n" +
+                    "Düşük = daha saydam.\n" +
+                    "Yüksek = daha dolu.\n" +
+                    "Cam daha beyaz/bulutlu olur. Koyu panel daha koyu ve dolu olur."
                 },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudHideZero)), "0 uyarıları gizle" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudHideZero)), "Açıkken [ ✓ ], Mini HUD sayacı 0 olan satırları gizler." },
-
-                // --------------------------------------------------------------------
-                // City Start tab - New City Start Settings
-                // --------------------------------------------------------------------
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.InitialMoney)), "Başlangıç parası" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.InitialMoney)),
-                    "Sonraki yüklenen <sınırlı para> şehrinin bakiyesini ayarlar — yeni veya mevcut.\n" +
-                    "Bir kez uygulandıktan sonra oyun varsayılanına döner.\n" +
-                    "Bir şehir yüklüyken gri olur.\n" +
-                    "Şehri yüklemeden veya başlatmadan önce ayarla. Sonra gerektiğinde <Para kısayol tutarı> kullan."
-                },
-
-                { m_Settings.GetOptionLocaleID("GameDefault"), "Oyun varsayılanı" },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.CustomMilestone)), "Kilometre taşı seçici" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.CustomMilestone)),
-                    "<Yüklemeden veya başlatmadan önce> aç; seçilen kilometre taşı yüklemede açılır.\n" +
-                    "- Şehir yüklüyken açılamaz, ama yanlışlıkla açıksa kapatılabilir.\n" +
-                    "- Unuttuysan oyunu yeniden başlat ve şehre girmeden önce seç.\n" +
-                    "- Mod, kayda geçmiş kilometre taşı değişikliklerini geri alamaz; eski kayıt kullan."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MilestoneLevel)), "Kilometre taşı" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MilestoneLevel)),
-                    "Sonraki şehir yüklemesinde açılacak kilometre taşını seç.\n" +
-                    "Sadece <şehir yüklü değilken> ve [Kilometre taşı seçici] açık [ ✓ ] iken ayarlanır.\n" +
-                    "Şehir zaten o seviyede veya üstündeyse bir şey olmaz.\n" +
-                    "Sadece seçilen seviye daha yüksekse değişir."
-                },
-
-                // --------------------------------------------------------------------
-                // City Start tab - Money
-                // --------------------------------------------------------------------
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ManualMoneyAmount)), "Para kısayol tutarı" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ManualMoneyAmount)),
-                    "Bu tutarı Para Ekle ve Para Çıkar kısayollarıyla kullan.\n" +
-                    "<Mod varsayılanı = 40,000>\n" +
-                    "Şehirde kısayol kullanmazsan bir şey yapmaz.\n" +
-                    "Otomatik para için Otomatik Para seçeneğini aç."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AddMoneyKeyboardBinding)), "Para ekle" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AddMoneyKeyboardBinding)), "Şehirde <Para ekle> kısayolu." },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.AddMoneyAction), "Para ekle" },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.SubtractMoneyKeyboardBinding)), "Para çıkar" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.SubtractMoneyKeyboardBinding)), "Şehirde <Para çıkar> kısayolu." },
-                { m_Settings.GetBindingKeyLocaleID(CwdSettings.SubtractMoneyAction), "Para çıkar" },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AutomaticAddMoney)), "Otomatik para" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AutomaticAddMoney)),
-                    "Açıkken [ ✓ ], City Watchdog şehir bakiyesini kontrol eder.\n" +
-                    "- Bakiye <eşik altındaysa>, eşiğe ulaşacak kadar para ekler.\n" +
-                    "- Her zaman en az seçilen Otomatik Para Tutarını ekler.\n" +
-                    "- Yalnız ara sıra gerekiyorsa manuel kısayollar (<[> veya <]>) önerilir."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AutomaticAddMoneyThreshold)), "Otomatik para eşiği" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AutomaticAddMoneyThreshold)),
-                    "Otomatik Para açıkken şehir bakiyesi bu değerin altına düşerse,\n" +
-                    "en az bu eşiğe ulaşana kadar para eklenir."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.AutomaticAddMoneyAmount)), "Otomatik para tutarı" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.AutomaticAddMoneyAmount)),
-                    "Otomatik Para her tetiklendiğinde eklenen asgari tutar.\n" +
-                    "Eşiğe ulaşmak için daha fazlası gerekirse City Watchdog daha büyük tutarı ekler."
-                },
-
-                // --------------------------------------------------------------------
-                // City Start tab - Save Conversion
-                // --------------------------------------------------------------------
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ConfirmUnlimitedMoneySaveConversion)), "Sınırsız para dönüştürücü" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ConfirmUnlimitedMoneySaveConversion)),
-                    "<ÖNCE şehir yedeği al>.\n" +
-                    "Sınırsız Para ile başlayan şehri normal şehre çevirir.\n" +
-                    "Yüklü şehir <Sınırsız Para> tipindeyse <[Sınırsız Para kaydını çevir]> düğmesini açar.\n" +
-                    "City Watchdog bunu geri alamaz.\n" +
-                    "Normal şehirlerin için gerekli değil."
-                },
-
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.ConvertUnlimitedMoneySave)), "Sınırsız Para şehrini normale çevir" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.ConvertUnlimitedMoneySave)),
-                    "<Sınırsız Para> ile başlayan şehirler için.\n" +
-                    "Şehir yüklüyken kaydı normal sınırlı bütçeye çevirir.\n" +
-                    "Düğme, şehir <Sınırsız Para> değilse veya\n" +
-                    "<Sınırsız para dönüştürücü> AÇIK [ ✓ ] değilse <devre dışı/gri> olur.\n" +
-                    "Yedek al ve risk sana ait; City Watchdog geri alamaz."
-                },
-
-                { m_Settings.GetOptionWarningLocaleID(nameof(CwdSettings.ConvertUnlimitedMoneySave)),
-                    "Bu şehir Sınırsız Para’dan normal sınırlı paraya çevrilsin mi?\n" +
-                    "ÖNCE yedek kaydet; City Watchdog geri alamaz.\n" +
-                    "Emin misin?"
-                },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.MiniHudHideZero)), "Sıfır uyarıları gizle" },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.MiniHudHideZero)), "Açıkken [ ✓ ], Mini HUD değeri 0 olan bildirim satırlarını gizler." },
 
                 // --------------------------------------------------------------------
                 // About tab
@@ -377,23 +280,23 @@ namespace CityWatchdog
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.NameText)), "Bu modun görünen adı." },
 
                 { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.VersionText)), "Sürüm" },
-                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.VersionText)), "Güncel mod sürümü." },
+                { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.VersionText)), "Geçerli mod sürümü." },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.OpenParadox)), "Paradox Mods" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.OpenParadox)), "Mochi'nin Paradox Mods'u" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.OpenParadox)), "Yazarın Paradox Mods sayfasını açar." },
 
                 // --------------------------------------------------------------------
                 // About tab - Diagnostics
                 // --------------------------------------------------------------------
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.WriteNotificationAuditLog)), "Tanı raporu" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.WriteNotificationAuditLog)), "Debug raporunu loga yaz" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.WriteNotificationAuditLog)),
                     "<Normal oyun için gerekmez.>\n" +
-                    "Testçiler ve oyun güncellemelerinden sonraki kontroller için: <Logs/CityWatchdog.log> içine rapor yazar\n" +
-                    "ve canlı oyun bildirimlerini Watchdog simgeleriyle karşılaştırır."
+                    "Testler ve oyun yamalarından sonraki kontroller için <Logs/CityWatchdog.log> dosyasına rapor yazar\n" +
+                    "ve güncel oyun bildirimlerini Watchdog'un kontrol ettiği simgelerle karşılaştırır."
                 },
 
-                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.OpenLog)), "Günlüğü aç" },
+                { m_Settings.GetOptionLabelLocaleID(nameof(CwdSettings.OpenLog)), "Logu aç" },
                 { m_Settings.GetOptionDescLocaleID(nameof(CwdSettings.OpenLog)),
                     "</Logs/CityWatchdog.log> varsa açar.\n" +
                     "Yoksa Logs/ klasörünü açar."

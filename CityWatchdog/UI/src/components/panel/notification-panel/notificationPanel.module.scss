@@ -15,60 +15,61 @@
 }
 
 .panel {
-    position: relative;
-    top: 0;
-    left: 0;
-    overflow: visible;
-    width: 400rem;
-    max-height: 890rem;
-    // Lets custom wrapper colors show through instead of stacking extra vanilla fills.
-    // follows same idea as ZoneTools: make Panel shell transparent,
-    // then style real vanilla header/content wrappers below.
-    --menuPanel1: transparent;
-    --menuPanel2: transparent;
-    --panelColorDark: transparent;
-    --panelColorNormal: transparent;
-    --sectionHeaderColor: transparent;
-    background-color: transparent;
-    // Actual vanilla Panel header wrapper.
-    // Higher alpha = darker/less see-through. Lower alpha = lighter/more see-through.
-    > div[class*="header_"] {
-        height: 30rem !important;
-        min-height: 30rem !important;
-        max-height: 30rem !important;
-        overflow: visible !important;
-        background-color: rgba(36, 54, 66, 0.72) !important;
-        background-image: none !important;
-        transition-property: background-color;
-        transition-duration: 120ms;
-        transition-timing-function: ease-out;
-    }
-        // Header hover: lighter gray and a little more transparent.
-        > div[class*="header_"]:hover {
-            background-color: rgba(76, 98, 112, 0.46) !important;
-        }
-    // Actual vanilla Panel content wrapper.
-    // Main large panel body behind toolbar + notification rows.
-    > div[class*="content_"] {
-        background-image: linear-gradient(to bottom, rgba(55, 82, 96, 0.72), rgba(31, 45, 60, 0.66)) !important;
-        background-color: transparent !important;
-    }
-    // Keep only the original padding/close-button positioning fixes.
-    // Do not set background colors here; that can accidentally target the panel body.
-    > :nth-child(2) {
-        > :nth-child(1) {
-            > :nth-child(1) {
-                padding-right: 0 !important;
-            }
+  position: relative;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  width: 400rem;
+  max-height: 890rem;
+  // Lets custom wrapper colors show through instead of stacking extra vanilla fills.
+  // follows same idea as ZoneTools: make Panel shell transparent,
+  // then style real vanilla header/content wrappers below.
+  --menuPanel1: transparent;
+  --menuPanel2: transparent;
+  --panelColorDark: transparent;
+  --panelColorNormal: transparent;
+  --sectionHeaderColor: transparent;
+  background-color: transparent;
 
-            > :nth-child(2) {
-                right: 2rem;
-            }
-        }
+  // vanilla Panel header wrapper.
+  // Higher alpha = darker/less see-through. Lower alpha = lighter/more see-through.
+  > div[class*="header_"] {
+    min-height: 30rem !important;
+    height: auto !important;
+    overflow: visible !important;
+    background-color: rgba(36, 54, 66, 0.72) !important;
+    background-image: none !important;
+    transition-property: background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease-out;
+  }
+    // Header hover: lighter gray and a little more transparent.
+    > div[class*="header_"]:hover {
+      background-color: rgba(76, 98, 112, 0.46) !important;
     }
+
+  // vanilla Panel content wrapper.
+  // Main large panel body behind toolbar + notification rows.
+  > div[class*="content_"] {
+    background-image: linear-gradient(to bottom, rgba(55, 82, 96, 0.72), rgba(31, 45, 60, 0.66)) !important;
+    background-color: transparent !important;
+  }
+  // Keeping only original padding/close-button positioning fixes.
+  // no background colors here; can accidentally target the panel body.
+  > :nth-child(2) {
+    > :nth-child(1) {
+      > :nth-child(1) {
+        padding-right: 0 !important;
+      }
+
+      > :nth-child(2) {
+        right: 2rem;
+      }
+    }
+  }
 }
 
-// Match the Mini HUD opacity control with explicit compiled classes. This avoids applying CSS
+// Match the Mini HUD opacity control with explicit compiled classes. avoids applying CSS
 // opacity to the whole panel, which would also fade the text, icons, counters, and controls.
 @mixin mainPanelOpacity($name, $alpha) {
     .panel.opacity#{$name} {
@@ -102,37 +103,36 @@
 @include mainPanelOpacity(95, 0.95);
 @include mainPanelOpacity(100, 1);
 
-// Applied ONLY when every section is expanded (the tallest content state, currently the one that
-// needs the scrollbar). Deliberately NOT the base .panel rule — the "categories only" collapsed
-// view and any partially-expanded state keep the original 890rem ceiling, completely untouched.
-// A partial row at the cutoff edge is normal scroll-container behavior (same as any scrollable list)
-// and not worth chasing — the exact row where it lands varies by how many notifications are enabled
-// per city, so it will rarely land on a clean boundary regardless of this number.
+// Applied ONLY when every section is expanded (tallest content state, one that
+// needs the scrollbar). Categories only collapsed view and any
+// partial-expanded state keep original 890rem ceiling untouched.
+// A partial row at the cutoff edge is same as any scrollable list.
+// exact row where it lands varies by how many notifications are enabled so it
+// rarely lands on a clean boundary regardless of this number.
 .panelAllExpanded {
-    max-height: 766rem;
+    max-height: 658rem;
 }
 
 .header {
-    width: 100%;
-    min-width: 0;
-    height: 30rem;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding-top: 0;
-    padding-right: 5rem;
-    padding-bottom: 0;
-    padding-left: 5rem;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    overflow: visible;
-    background-color: transparent; // hide the inner title bar on the header
-    // Coherent's font box sits slightly low here; move header content up.
-    transform: translateY(-5.5rem);
+  width: 100%;
+  min-width: 0;
+  min-height: 30rem;
+  height: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  box-sizing: border-box;
+  padding-top: 2rem;
+  padding-right: 5rem;
+  padding-bottom: 2rem;
+  padding-left: 5rem;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  overflow: visible;
+  background-color: transparent; // hide the inner title bar on the header
 }
-
 
 .headerTitleArea {
     display: flex;
@@ -146,7 +146,7 @@
 }
 
 // Wrapper around the title-bar CWD icon — clickable button surface that toggles panel tooltips.
-// Transparent border declared at base so the active state can color it without shifting layout.
+// Transparent border declared at base so active state can color it without shifting layout.
 .headerModIconButton {
     display: flex;
     align-items: center;
@@ -155,7 +155,7 @@
     padding-right: 0;
     padding-bottom: 0;
     padding-left: 0;
-    // Pull the paw left so it sits more directly over the Info "i" button below it. The extra
+    // Pull the paw left so it sits more directly over the Info "i" button below it. extra
     // margin-right cancels that leftward shift for the scale button + title that follow, so only
     // the paw moves (tune the -5rem / +5rem pair together to slide it more or less).
     margin-left: -5rem;
@@ -189,7 +189,7 @@
 }
 
 // Active state — when panel tooltips OFF. Matches the Info-button "all off" red border / orange icon
-// so the player clearly sees a mod-side toggle is muting something important.
+// so player sees a mod-side toggle is muting important thing!
 .headerModIconOff {
     background-color: transparent;
     border-top-color: rgba(255, 96, 96, 0.95);
@@ -294,14 +294,16 @@
     }
 }
 
-// Highlighted when UI scaling is ON.
+// Highlighted when UI scaling is ON. Same blue hue as the Road-Arrows/Night "on" state, but a
+// lower idle alpha on purpose: UI-scale is usually left ON permanently, so a calmer fill is less
+// distracting. It still brightens to the shared cyan on hover.
 .headerScaleButtonActive {
-    background-color: rgba(30, 131, 170, 0.40);
+    background-color: rgba(30, 131, 170, 0.42);
     // No glow — the flat blue fill alone marks the active state; the halo read as too bright.
     box-shadow: none;
 
     &:hover {
-        background-color: rgba(50, 160, 200, 0.50);
+        background-color: rgba(84, 215, 255, 0.5);
     }
 }
 
@@ -321,14 +323,21 @@
     filter: brightness(0) invert(1) opacity(1);
 }
 
-// Standalone X glyph inside the icon-button — vanilla button frame doesn't size the inner img.
-// Media/Glyphs/Close.svg is solid black; the filter inverts it to a softened white.
+// Keep the close X subdued until hovered.
 .headerCloseIcon {
-    width: 18rem;
-    height: 18rem;
-    display: block;
-    pointer-events: none;
-    filter: brightness(0) invert(1) opacity(0.85);
+  width: 18rem;
+  height: 18rem;
+  display: block;
+  pointer-events: none;
+  filter: brightness(0) invert(1);
+  opacity: 0.45;
+  transition-property: opacity;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
+}
+
+.headerCloseButton:hover .headerCloseIcon {
+  opacity: 1;
 }
 
 .introText {

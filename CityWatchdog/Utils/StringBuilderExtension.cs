@@ -6,8 +6,9 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: src/Utils/StringBuilderExtension.cs
-// Purpose: Provides legacy StringBuilder extension methods used by City Watchdog debug logging.
+// File: Utils/StringBuilderExtension.cs
+// version: 0.1.1
+// Purpose: Provides legacy StringBuilder extension methods used for debug logging.
 
 namespace CityWatchdog.Extensions
 {

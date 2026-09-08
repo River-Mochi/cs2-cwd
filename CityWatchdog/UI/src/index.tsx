@@ -6,6 +6,7 @@ import mod from "../mod.json";
 import { EntryButton } from "./components/entry-button/entryButton";
 import { MiniHud } from "./components/mini-hud/miniHud";
 import { NotificationPanel } from "./components/panel/notification-panel/notificationPanel";
+import { EditorQuickControls } from "./components/editor-quick-controls/editorQuickControls";
 import { DescriptionTooltipMoneyViewExtension, StatFieldMoneyViewExtension, TooltipGateExtension } from "./components/money-view/moneyView";
 import { VanillaComponentResolver } from "./utils/vanilla";
 // Side-effect import — webpack emits this SVG to coui://ui-mods/images/ so the C# Options UI
@@ -41,6 +42,7 @@ const register: ModRegistrar = (moduleRegistry) => {
     moduleRegistry.append("GameTopLeft", EntryButton);
     moduleRegistry.append("Game", NotificationPanel);
     moduleRegistry.append("Game", MiniHud);
+    moduleRegistry.append("Editor", EditorQuickControls);
 };
 
 export default register;

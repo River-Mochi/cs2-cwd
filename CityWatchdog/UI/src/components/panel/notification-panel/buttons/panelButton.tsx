@@ -16,6 +16,7 @@ interface PanelButtonProps {
     iconKind?: PanelButtonIconKind;
     iconSrc?: string;
     iconAlt?: string;
+    iconClassName?: string;
     ariaPressed?: boolean;
     // Activation handler. Wired to the vanilla cs2/ui Button's onSelect (CS2's native click/sound/focus
     // + controller path), not a raw DOM onClick — onClick is only correct on raw <button>/<div> elements.
@@ -77,6 +78,7 @@ export const PanelButton = ({
     iconKind = "default",
     iconSrc,
     iconAlt = "",
+    iconClassName,
     ariaPressed,
     onClick,
     children,
@@ -88,7 +90,7 @@ export const PanelButton = ({
             <img
                 key={iconSrc}
                 src={iconSrc}
-                className={classNames(styles.icon, iconKindClass(iconKind))}
+                className={classNames(styles.icon, iconKindClass(iconKind), iconClassName)}
                 alt={iconAlt}
             />
         )

@@ -107,7 +107,7 @@ namespace CityWatchdog
 
         private static bool IsLangJsonResource(string resourceName)
         {
-            return resourceName.IndexOf(kLangMarker, StringComparison.Ordinal) >= 0
+            return resourceName.Contains(kLangMarker)
                 && resourceName.EndsWith(kJsonSuffix, StringComparison.OrdinalIgnoreCase);
         }
 

@@ -363,6 +363,8 @@ namespace CityWatchdog
 
             PanelPositionX = Math.Clamp(PanelPositionX, -kPanelPositionLimit, kPanelPositionLimit);
             PanelPositionY = Math.Clamp(PanelPositionY, -kPanelPositionLimit, kPanelPositionLimit);
+            EditorQuickControlsPositionX = Math.Clamp(EditorQuickControlsPositionX, -kPanelPositionLimit, kPanelPositionLimit);
+            EditorQuickControlsPositionY = Math.Clamp(EditorQuickControlsPositionY, -kPanelPositionLimit, kPanelPositionLimit);
         }
 
         private void SetMiniHudRecommendedFavorites()

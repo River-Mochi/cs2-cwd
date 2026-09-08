@@ -32,9 +32,25 @@ namespace CityWatchdog
     using UnityEngine;
 
     [FileLocation("ModsSettings/CityWatchdog/CityWatchdog")]
-    [SettingsUITabOrder(kActions, kMiniHudTab, kMoneyTab, kAbout)]
-    [SettingsUIGroupOrder(kAboutUsage, kNotifications, kMoneyViewGroup, kMiniHudGroup, kMilestone, kSaveConversion, kMoney, kAboutInfo, kAboutLinks, kAboutDiagnostics, kSerialize)]
-    [SettingsUIShowGroupName(kAboutUsage, kNotifications, kMoneyViewGroup, kMiniHudGroup, kMilestone, kMoney, kSaveConversion, kAboutDiagnostics, kSerialize)]
+    [SettingsUITabOrder(kActions, kMiniHudTab, kHotkeys, kAbout)]
+    [SettingsUIGroupOrder(
+        kAboutUsage,
+        kNotifications,
+        kHotkeyActions,
+        kMoneyViewGroup,
+        kMiniHudGroup,
+        kAboutInfo,
+        kAboutLinks,
+        kAboutDiagnostics,
+        kSerialize)]
+    [SettingsUIShowGroupName(
+        kAboutUsage,
+        kNotifications,
+        kHotkeyActions,
+        kMoneyViewGroup,
+        kMiniHudGroup,
+        kAboutDiagnostics,
+        kSerialize)]
     public partial class CwdSettings : ModSetting
     {
         internal static CwdSettings Instance { get; set; } = null!;
@@ -42,35 +58,28 @@ namespace CityWatchdog
         // Tab IDs.
         internal const string kActions = "Actions";
         internal const string kMiniHudTab = "MiniHud";
-        internal const string kMoneyTab = "Money";
         internal const string kHotkeys = "Hotkeys";
         internal const string kAbout = "About";
         internal const string kDebug = "Debug";
         internal const string kSerialize = "Serialize";
 
         // Keybinding action IDs.
-        public const string AddMoneyAction = nameof(AddMoneyAction);
-        public const string SubtractMoneyAction = nameof(SubtractMoneyAction);
         public const string ToggleNotificationsAction = nameof(ToggleNotificationsAction);
         public const string ToggleNotificationPanelAction = nameof(ToggleNotificationPanelAction);
         public const string ToggleRoadNamesAction = nameof(ToggleRoadNamesAction);
         public const string ToggleAllTooltipsAction = nameof(ToggleAllTooltipsAction);
 
         // Group IDs.
-        internal const string kMoneyViewGroup = "MoneyViewGroup";
-        internal const string kMoney = "Money";
         internal const string kNotifications = "Notifications";
-        internal const string kMiniHudGroup = "MiniHudGroup";
-        internal const string kMilestone = "Milestone";
-        internal const string kSaveConversion = "SaveConversion";
         internal const string kHotkeyActions = "HotkeyActions";
+        internal const string kMoneyViewGroup = "MoneyViewGroup";
+        internal const string kMiniHudGroup = "MiniHudGroup";
         internal const string kAboutInfo = "AboutInfo";
         internal const string kAboutLinks = "AboutLinks";
         internal const string kAboutDiagnostics = "AboutDiagnostics";
         internal const string kAboutUsage = "AboutUsage";
 
-        // Coarse sanity bound (pixels) for the stored draggable panel position. The UI does the
-        // real on-screen clamping against the live viewport; this only guards absurd saved values.
+        // Stored panel position gets real viewport clamping in the UI.
         internal const int kPanelPositionLimit = 20000;
         internal const int kMainPanelOpacityDefault = 80;
 
@@ -82,13 +91,14 @@ namespace CityWatchdog
 
         private int m_MainPanelOpacity = kMainPanelOpacityDefault;
 
-        public CwdSettings(IMod mod) : base(mod)
+        public CwdSettings(IMod mod)
+            : base(mod)
         {
             SetDefaults();
         }
 
         // --------------------------------------------------------------------
-        // Actions tab - Usage
+        // Main tab - Usage
         // --------------------------------------------------------------------
 
         [SettingsUISection(kActions, kAboutUsage)]
@@ -100,42 +110,12 @@ namespace CityWatchdog
         public string UsageText => string.Empty;
 
         // --------------------------------------------------------------------
-        // Actions tab - Notifications
+        // Main tab - Main Notification Panel
         // --------------------------------------------------------------------
-
-        [SettingsUIKeyboardBinding(BindingKeyboard.N, ToggleNotificationsAction)]
-        [SettingsUISection(kActions, kNotifications)]
-        public ProxyBinding ToggleNotificationsKeyboardBinding { get; set; }
-
-        [SettingsUIKeyboardBinding(BindingKeyboard.N, ToggleNotificationPanelAction, shift: true)]
-        [SettingsUISection(kActions, kNotifications)]
-        public ProxyBinding ToggleNotificationPanelKeyboardBinding { get; set; }
 
         [SettingsUISection(kActions, kNotifications)]
         [SettingsUISetter(typeof(CwdSettings), nameof(OnPanelButtonsOnlyStartChanged))]
         public bool PanelButtonsOnlyStart { get; set; }
-
-        [SettingsUIKeyboardBinding(BindingKeyboard.Backslash, ToggleRoadNamesAction)]
-        [SettingsUISection(kActions, kNotifications)]
-        public ProxyBinding ToggleRoadNamesKeyboardBinding { get; set; }
-
-        // Persisted across sessions but intentionally hidden from Options UI — controlled only
-        // by the Road-Names button on the in-game panel (or the \ hotkey).
-        [SettingsUIHidden]
-        public bool HideRoadNames { get; set; }
-
-        // Persisted across sessions and controlled by the in-game District Names button.
-        [SettingsUIHidden]
-        public bool HideDistrictNames { get; set; }
-
-        // Show 1-way road direction arrows while no road tool is active.
-        // Hidden from Options UI; toggled from the in-game panel button.
-        [SettingsUIHidden]
-        public bool ShowRoadArrows { get; set; }
-
-        [SettingsUIKeyboardBinding(BindingKeyboard.Backslash, ToggleAllTooltipsAction, shift: true)]
-        [SettingsUISection(kActions, kNotifications)]
-        public ProxyBinding ToggleAllTooltipsKeyboardBinding { get; set; }
 
         [SettingsUISlider(min = 30, max = 100, step = 5, scalarMultiplier = 1, unit = Unit.kPercentage)]
         [SettingsUISection(kActions, kNotifications)]
@@ -148,12 +128,7 @@ namespace CityWatchdog
                 : Math.Clamp(value, 30, 100);
         }
 
-
-        // Mirrors vanilla "Interface Scaling (dev)" flag, which normally only appears in the game's
-        // Options > Interface when launched with --developerMode. Turning it on makes the WHOLE game UI
-        // (+ mod panels) render larger.
-        // Live pass-through to vanilla's dev-only interface-scaling flag.
-        // CWD keeps no duplicate; load-time setter safely no-ops before the control system exists.
+        // Mirrors vanilla Interface Scaling (dev).
         [SettingsUISection(kActions, kNotifications)]
         public bool InterfaceScaling
         {
@@ -163,30 +138,64 @@ namespace CityWatchdog
                 .SetInterfaceScaling(value);
         }
 
-        // Session-only now: the CWD title-bar tooltip toggle starts OFF (tooltips shown) each launch
-        // so new mod tooltips are always seen first. Retained only so the binding name stays
-        // "DisableCwdTooltips"; the stored value is no longer read to drive behavior.
-        [SettingsUIHidden]
+        // Can be turned OFF here. The title-bar paw can restore tooltips in-game.
+        [SettingsUISection(kActions, kNotifications)]
+        [SettingsUISetter(typeof(CwdSettings), nameof(OnDisableCwdTooltipsChanged))]
         public bool DisableCwdTooltips { get; set; }
 
-        // Last position of the draggable main panel. Hidden from Options UI; written by the panel
-        // drag and clamped back on-screen by the UI so a resolution change can't strand it off-view.
+        // --------------------------------------------------------------------
+        // Key Bindings tab - Main panel and display
+        // --------------------------------------------------------------------
+
+        [SettingsUIKeyboardBinding(BindingKeyboard.N, ToggleNotificationPanelAction, shift: true)]
+        [SettingsUISection(kHotkeys, kHotkeyActions)]
+        public ProxyBinding ToggleNotificationPanelKeyboardBinding { get; set; }
+
+        [SettingsUIKeyboardBinding(BindingKeyboard.N, ToggleNotificationsAction)]
+        [SettingsUISection(kHotkeys, kHotkeyActions)]
+        public ProxyBinding ToggleNotificationsKeyboardBinding { get; set; }
+
+        [SettingsUIKeyboardBinding(BindingKeyboard.Backslash, ToggleRoadNamesAction)]
+        [SettingsUISection(kHotkeys, kHotkeyActions)]
+        public ProxyBinding ToggleRoadNamesKeyboardBinding { get; set; }
+
+        [SettingsUIKeyboardBinding(BindingKeyboard.Backslash, ToggleAllTooltipsAction, shift: true)]
+        [SettingsUISection(kHotkeys, kHotkeyActions)]
+        public ProxyBinding ToggleAllTooltipsKeyboardBinding { get; set; }
+
+        // Persisted across sessions but controlled from the in-game panel/hotkeys.
+        [SettingsUIHidden]
+        public bool HideRoadNames { get; set; }
+
+        [SettingsUIHidden]
+        public bool HideDistrictNames { get; set; }
+
+        [SettingsUIHidden]
+        public bool ShowRoadArrows { get; set; }
+
+        // Last position of the draggable main panel.
         [SettingsUIHidden]
         public int PanelPositionX { get; set; }
 
         [SettingsUIHidden]
         public int PanelPositionY { get; set; }
 
-        // Which main-panel sections the player collapsed, as a bitmask over the section list
-        // (bit set = collapsed). Default 0 = all expanded, so a fresh install shows every row.
+        // Separate Editor quick-controls position.
+        [SettingsUIHidden]
+        public int EditorQuickControlsPositionX { get; set; }
+
+        [SettingsUIHidden]
+        public int EditorQuickControlsPositionY { get; set; }
+
+        // bit set = collapsed.
         [SettingsUIHidden]
         public int PanelCollapsedSectionsMask { get; set; }
 
-        // Main-panel sort mode the player last used: 0 = A->Z, 1 = Z->A, 2 = Active-first.
-        // Default 0 so a fresh install opens grouped A->Z.
+        // 0 = A->Z, 1 = Z->A, 2 = Active-first.
         [SettingsUIHidden]
         public int PanelSortMode { get; set; }
 
+        // --------------------------------------------------------------------
         // About tab
         // --------------------------------------------------------------------
 
@@ -214,7 +223,6 @@ namespace CityWatchdog
                 }
             }
         }
-
 
         // --------------------------------------------------------------------
         // About tab - Diagnostics
@@ -299,20 +307,28 @@ namespace CityWatchdog
 
         public override void SetDefaults()
         {
-            ApplyMoneyDefaults();
-
             ShowUsage = false;
 
             DisableCwdTooltips = false;
             HideRoadNames = false;
             HideDistrictNames = false;
             ShowRoadArrows = false;
+
             PanelButtonsOnlyStart = false;
             MainPanelOpacity = kMainPanelOpacityDefault;
             PanelPositionX = 0;
             PanelPositionY = 0;
+            EditorQuickControlsPositionX = 0;
+            EditorQuickControlsPositionY = 0;
             PanelCollapsedSectionsMask = 0;
             PanelSortMode = 0;
+
+            // Population + Money trends stay in CWD.
+            MoneyView = true;
+            MoneyViewMode = kMoneyViewModeMonthly;
+            MoneyTooltipMode = kMoneyTooltipModeFullData;
+            MoneyTooltipFontScale = 120;
+            PopulationTooltipFontScale = 120;
 
             ApplyMiniHudStarterPresetValues();
 
@@ -320,9 +336,18 @@ namespace CityWatchdog
             ResetPresets();
         }
 
-        private static void OnPanelButtonsOnlyStartChanged(bool value) => GetUISystem()?.UpdatePanelButtonsOnlyStartBinding(value);
+        private static void OnPanelButtonsOnlyStartChanged(bool value) =>
+            GetUISystem()?.UpdatePanelButtonsOnlyStartBinding(value);
 
-        private static void OnMainPanelOpacityChanged(int value) => GetUISystem()?.UpdateMainPanelOpacityBinding(value);
+        private static void OnMainPanelOpacityChanged(int value) =>
+            GetUISystem()?.UpdateMainPanelOpacityBinding(value);
+
+        private static void OnDisableCwdTooltipsChanged(bool value)
+        {
+            World.DefaultGameObjectInjectionWorld?
+                .GetExistingSystemManaged<TooltipControlSystem>()?
+                .SetCwdTooltipsDisabled(value);
+        }
 
         private static CityWatchdogUISystem? GetUISystem()
         {
