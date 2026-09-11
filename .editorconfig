@@ -1,4 +1,4 @@
-# File: .editorconfig version 0.7.0
+# File: .editorconfig version 0.7.1
 # Purpose:
 #   - MIT variant of the River-Mochi .editorconfig.
 #   - Consistent whitespace + LF line endings across normal repo files.
@@ -97,6 +97,9 @@ csharp_style_var_elsewhere = false:suggestion
 # ---- Analyzer tuning ----
 # Use conditional access: keep as suggestion.
 dotnet_diagnostic.RCS1146.severity = suggestion
+
+# Keep explicit null-check assignment blocks instead of suggesting ??=.
+dotnet_diagnostic.IDE0074.severity = none
 
 # Disable doc-paragraph nit.
 dotnet_diagnostic.RCS1226.severity = none
