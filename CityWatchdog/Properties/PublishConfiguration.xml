@@ -31,8 +31,9 @@ City Watchdog helps you see and manage city info — it does not fix city proble
 - Open the main panel from the top-left Paw icon.
 - **Blue Stars** are Mini HUD favorites and are separate from Presets 1 | 2.
 - Safe to remove any time. No Harmony patches.
-- **Presets 1 | 2** — save custom notification checkbox layouts. Selecting a preset instead of Hide All will show only the notification icons you want. Blue Stars remain separate Mini HUD favorites.
-- Milestone, budget, and related tools have moved from City Watchdog to the [Budget + Milestones mod](https://mods.paradoxplaza.com/mods/158395/Windows). Install both if you want the previous combined functionality.
+- **Presets 1 | 2** — save custom notification checkbox layouts. Selecting a preset instead of Hide All will show only the notification icons you want. Blue Stars remain separate Mini HUD favorites.Install both if you want the previous combined functionality.
+- Milestones + Money tools moved to the new Budget + Milestones mod [Budget + Milestones mod](https://mods.paradoxplaza.com/mods/158395/Windows).
+- Money and Population Trends remain in City Watchdog.
 
 ### Support and feedback
 
@@ -81,7 +82,7 @@ tags: Visual, UI UX tool tips, UI organize icons, Mini HUD view, clean UI
 <!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 <ChangeLog>
 - Updated for game patch 1.6.2f1.
-- Recent updates:
+- Recent updates a few days ago:
 - Added Bigger UI button — quick access to the game's own interface scaling without Developer Mode.
 - City Watchdog is now focused on notifications, visual comfort, Mini HUD, tooltips, and organizing city information.
 - Budget, Money, and Milestone tools moved to the new Budget + Milestones mod.
