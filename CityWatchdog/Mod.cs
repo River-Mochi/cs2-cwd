@@ -160,8 +160,12 @@ namespace CityWatchdog
                 updateSystem.UpdateAt<AlertIconSystem>(SystemUpdatePhase.ModificationEnd);
 
 #if DEBUG
-                updateSystem.UpdateAt<NoCustomersDebugSystem>(SystemUpdatePhase.ModificationEnd);
+updateSystem.UpdateAfter<
+    NoCustomersDebugSystem,
+    Game.Simulation.ServiceCompanySystem>(
+        SystemUpdatePhase.GameSimulation);
 #endif
+
             }
             catch (Exception ex)
             {

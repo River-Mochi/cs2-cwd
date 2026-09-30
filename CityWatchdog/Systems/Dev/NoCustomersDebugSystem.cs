@@ -11,72 +11,62 @@
 
 #if DEBUG
 
+using System.Globalization;
+using System.Text;
+
+using Colossal.Serialization.Entities;
+
+using CS2Shared.RiverMochi;
+
+using Game;
+using Game.Buildings;
+using Game.Companies;
+using Game.Economy;
+using Game.Prefabs;
+
+using Unity.Entities;
+
 namespace CityWatchdog.Systems
 {
-    using System;
-    using System.Text;
-
-    using CS2Shared.RiverMochi;
-
-    using Game.Buildings;
-    using Game.Common;
-    using Game.Companies;
-    using Game.Economy;
-    using Game.Prefabs;
-    using Game.Simulation;
-
-    using Unity.Collections;
-    using Unity.Entities;
-
-    public sealed class NoCustomersDebugSystem : GameSystemBase
+    public partial class NoCustomersDebugSystem : GameSystemBase
     {
-        // Frequent enough to see warnings appear/disappear without scanning every simulation tick.
-        private const uint kScanIntervalFrames = 2048;
+        // Power-of-two interval required by CS2's UpdateSystem.
+        private const int kScanInterval = 2048;
 
-        // Full active-warning report less often to keep the log readable.
-        private const uint kReportIntervalFrames = 8192;
+        // Write detailed per-company rows every fourth scan.
+        private const int kFullReportEveryScans = 4;
 
-        private SimulationSystem m_SimulationSystem = null!;
         private PrefabSystem m_PrefabSystem = null!;
+        private int m_ScanCount;
 
-        private EntityQuery m_CommercialQuery;
-
-        private uint m_LastScanFrame;
-        private uint m_LastReportFrame;
+        public override int GetUpdateInterval(SystemUpdatePhase phase)
+        {
+            return kScanInterval;
+        }
 
         protected override void OnCreate()
         {
             base.OnCreate();
 
-            m_SimulationSystem = World.GetOrCreateSystemManaged<SimulationSystem>();
-            m_PrefabSystem = World.GetOrCreateSystemManaged<PrefabSystem>();
+            m_PrefabSystem =
+                World.GetOrCreateSystemManaged<PrefabSystem>();
+        }
 
-            m_CommercialQuery = GetEntityQuery(
-                ComponentType.ReadOnly<CommercialCompany>(),
-                ComponentType.ReadOnly<ServiceAvailable>(),
-                ComponentType.ReadOnly<CompanyNotifications>(),
-                ComponentType.ReadOnly<PrefabRef>(),
-                ComponentType.ReadOnly<PropertyRenter>(),
-                ComponentType.Exclude<Deleted>(),
-                ComponentType.Exclude<Temp>());
+        protected override void OnGameLoaded(Context serializationContext)
+        {
+            base.OnGameLoaded(serializationContext);
 
-            RequireForUpdate(m_CommercialQuery);
+            // Systems survive city loads; start the diagnostics fresh for each city.
+            m_ScanCount = 0;
         }
 
         protected override void OnUpdate()
         {
-            uint frame = m_SimulationSystem.frameIndex;
-
-            if (frame - m_LastScanFrame < kScanIntervalFrames)
-            {
-                return;
-            }
-
-            m_LastScanFrame = frame;
+            m_ScanCount++;
 
             bool writeFullReport =
-                m_LastReportFrame == 0 ||
-                frame - m_LastReportFrame >= kReportIntervalFrames;
+                m_ScanCount == 1 ||
+                m_ScanCount % kFullReportEveryScans == 0;
 
             int commercialCount = 0;
             int warningCount = 0;
@@ -84,40 +74,78 @@ namespace CityWatchdog.Systems
             int over95Count = 0;
             int over99Count = 0;
 
-            StringBuilder? details = writeFullReport
-                ? new StringBuilder(4096)
-                : null;
+            // DEBUG-only, low-frequency diagnostic. Keeping this non-null also lets
+            // nullable analysis protect us instead of suppressing CS8602.
+            StringBuilder details = new(4096);
 
-            using NativeArray<Entity> companies =
-                m_CommercialQuery.ToEntityArray(Allocator.Temp);
+            ComponentLookup<Game.Companies.ServiceCompanyData> serviceCompanyDatas =
+                SystemAPI.GetComponentLookup<Game.Companies.ServiceCompanyData>(true);
 
-            for (int i = 0; i < companies.Length; i++)
+            ComponentLookup<Game.Prefabs.IndustrialProcessData> industrialProcessDatas =
+                SystemAPI.GetComponentLookup<Game.Prefabs.IndustrialProcessData>(true);
+
+            ComponentLookup<Game.Companies.StorageLimitData> storageLimits =
+                SystemAPI.GetComponentLookup<Game.Companies.StorageLimitData>(true);
+
+            ComponentLookup<Game.Companies.WorkProvider> workProviders =
+                SystemAPI.GetComponentLookup<Game.Companies.WorkProvider>(true);
+
+            ComponentLookup<Game.Companies.CompanyStatisticData> companyStatistics =
+                SystemAPI.GetComponentLookup<Game.Companies.CompanyStatisticData>(true);
+
+            ComponentLookup<Game.Companies.ResourceBuyer> resourceBuyers =
+                SystemAPI.GetComponentLookup<Game.Companies.ResourceBuyer>(true);
+
+            ComponentLookup<Game.Prefabs.PrefabRef> prefabRefs =
+                SystemAPI.GetComponentLookup<Game.Prefabs.PrefabRef>(true);
+
+            BufferLookup<Game.Economy.Resources> resourcesLookup =
+                SystemAPI.GetBufferLookup<Game.Economy.Resources>(true);
+
+            BufferLookup<Game.Companies.Employee> employeesLookup =
+                SystemAPI.GetBufferLookup<Game.Companies.Employee>(true);
+
+            BufferLookup<Game.Citizens.TripNeeded> tripNeededLookup =
+                SystemAPI.GetBufferLookup<Game.Citizens.TripNeeded>(true);
+
+            foreach ((
+                RefRO<ServiceAvailable> serviceRef,
+                RefRO<CompanyNotifications> notificationsRef,
+                RefRO<PrefabRef> companyPrefabRef,
+                RefRO<PropertyRenter> propertyRenterRef,
+                Entity company) in
+                SystemAPI
+                    .Query<
+                        RefRO<Game.Companies.ServiceAvailable>,
+                        RefRO<Game.Companies.CompanyNotifications>,
+                        RefRO<Game.Prefabs.PrefabRef>,
+                        RefRO<Game.Buildings.PropertyRenter>>()
+                    .WithAll<Game.Companies.CommercialCompany>()
+                    .WithNone<Game.Common.Deleted, Game.Tools.Temp>()
+                    .WithEntityAccess())
             {
-                Entity company = companies[i];
                 commercialCount++;
 
-                ServiceAvailable service =
-                    EntityManager.GetComponentData<ServiceAvailable>(company);
+                Game.Companies.ServiceAvailable service =
+                    serviceRef.ValueRO;
 
-                CompanyNotifications notifications =
-                    EntityManager.GetComponentData<CompanyNotifications>(company);
+                Game.Companies.CompanyNotifications notifications =
+                    notificationsRef.ValueRO;
 
-                PrefabRef companyPrefabRef =
-                    EntityManager.GetComponentData<PrefabRef>(company);
+                Entity companyPrefab =
+                    companyPrefabRef.ValueRO.m_Prefab;
 
-                Entity companyPrefab = companyPrefabRef.m_Prefab;
-
-                if (!EntityManager.HasComponent<ServiceCompanyData>(companyPrefab) ||
-                    !EntityManager.HasComponent<IndustrialProcessData>(companyPrefab))
+                if (!serviceCompanyDatas.HasComponent(companyPrefab) ||
+                    !industrialProcessDatas.HasComponent(companyPrefab))
                 {
                     continue;
                 }
 
-                ServiceCompanyData serviceData =
-                    EntityManager.GetComponentData<ServiceCompanyData>(companyPrefab);
+                Game.Companies.ServiceCompanyData serviceData =
+                    serviceCompanyDatas[companyPrefab];
 
-                IndustrialProcessData process =
-                    EntityManager.GetComponentData<IndustrialProcessData>(companyPrefab);
+                Game.Prefabs.IndustrialProcessData process =
+                    industrialProcessDatas[companyPrefab];
 
                 if (serviceData.m_MaxService <= 0)
                 {
@@ -158,50 +186,54 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
-                Resource soldResource = process.m_Output.m_Resource;
+                Resource soldResource =
+                    process.m_Output.m_Resource;
 
                 int physicalStock = 0;
-                if (EntityManager.HasBuffer<Game.Economy.Resources>(company))
+
+                if (resourcesLookup.HasBuffer(company))
                 {
                     DynamicBuffer<Game.Economy.Resources> resources =
-                        EntityManager.GetBuffer<Game.Economy.Resources>(company);
+                        resourcesLookup[company];
 
                     physicalStock =
-                        EconomyUtils.GetResources(soldResource, resources);
+                        EconomyUtils.GetResources(
+                            soldResource,
+                            resources);
                 }
 
                 int storageLimit = -1;
-                if (EntityManager.HasComponent<StorageLimitData>(companyPrefab))
+
+                if (storageLimits.HasComponent(companyPrefab))
                 {
                     storageLimit =
-                        EntityManager
-                            .GetComponentData<StorageLimitData>(companyPrefab)
-                            .m_Limit;
+                        storageLimits[companyPrefab].m_Limit;
                 }
 
                 int workers = -1;
-                if (EntityManager.HasBuffer<Employee>(company))
+
+                if (employeesLookup.HasBuffer(company))
                 {
-                    workers = EntityManager.GetBuffer<Employee>(company).Length;
+                    workers =
+                        employeesLookup[company].Length;
                 }
 
                 int maxWorkers = -1;
-                if (EntityManager.HasComponent<WorkProvider>(company))
+
+                if (workProviders.HasComponent(company))
                 {
                     maxWorkers =
-                        EntityManager
-                            .GetComponentData<WorkProvider>(company)
-                            .m_MaxWorkers;
+                        workProviders[company].m_MaxWorkers;
                 }
 
                 int currentCustomers = -1;
                 int monthlyCustomers = -1;
                 int maxCustomers = -1;
 
-                if (EntityManager.HasComponent<CompanyStatisticData>(company))
+                if (companyStatistics.HasComponent(company))
                 {
-                    CompanyStatisticData statistics =
-                        EntityManager.GetComponentData<CompanyStatisticData>(company);
+                    Game.Companies.CompanyStatisticData statistics =
+                        companyStatistics[company];
 
                     currentCustomers =
                         statistics.m_CurrentNumberOfCustomers;
@@ -213,39 +245,61 @@ namespace CityWatchdog.Systems
                         statistics.m_MaxNumberOfCustomers;
                 }
 
-                int pendingRestock = 0;
                 int pendingRestockTrips = 0;
+                int pendingRestockAmount = 0;
 
-                if (EntityManager.HasBuffer<Game.Citizens.TripNeeded>(company))
+                if (tripNeededLookup.HasBuffer(company))
                 {
                     DynamicBuffer<Game.Citizens.TripNeeded> trips =
-                        EntityManager.GetBuffer<Game.Citizens.TripNeeded>(company);
+                        tripNeededLookup[company];
 
-                    for (int j = 0; j < trips.Length; j++)
+                    for (int i = 0; i < trips.Length; i++)
                     {
-                        Game.Citizens.TripNeeded trip = trips[j];
+                        Game.Citizens.TripNeeded trip = trips[i];
 
-                        if (trip.m_Purpose == Game.Citizens.Purpose.Shopping &&
-                            trip.m_Resource == soldResource)
+                        bool restockPurpose =
+                            trip.m_Purpose == Game.Citizens.Purpose.Shopping ||
+                            trip.m_Purpose == Game.Citizens.Purpose.CompanyShopping;
+
+                        if (restockPurpose &&
+                            IsInputResource(trip.m_Resource, process))
                         {
                             pendingRestockTrips++;
-                            pendingRestock += trip.m_Data;
+                            pendingRestockAmount += trip.m_Data;
                         }
                     }
                 }
 
-                PropertyRenter propertyRenter =
-                    EntityManager.GetComponentData<PropertyRenter>(company);
+                Resource buyRequestResource =
+                    Resource.NoResource;
 
-                Entity building = propertyRenter.m_Property;
+                int buyRequestAmount = 0;
+
+                if (resourceBuyers.HasComponent(company))
+                {
+                    Game.Companies.ResourceBuyer buyer =
+                        resourceBuyers[company];
+
+                    buyRequestResource =
+                        buyer.m_ResourceNeeded;
+
+                    buyRequestAmount =
+                        buyer.m_AmountNeeded;
+                }
+
+                Entity building =
+                    propertyRenterRef.ValueRO.m_Property;
 
                 string companyName =
                     GetCompanyPrefabName(companyPrefab);
 
                 string buildingName =
-                    GetBuildingPrefabName(building);
+                    GetBuildingPrefabName(
+                        building,
+                        prefabRefs);
 
-                details.Append("[CWD-NOCUSTOMERS] ")
+                details
+                    .Append("[CWD-NOCUSTOMERS] ")
                     .Append("company=").Append(company)
                     .Append(" companyPrefab=").Append(companyName)
                     .Append(" building=").Append(building)
@@ -256,12 +310,18 @@ namespace CityWatchdog.Systems
                     .Append('/')
                     .Append(serviceData.m_MaxService)
                     .Append(" unsold=")
-                    .Append((unsoldRatio * 100f).ToString("F1"))
+                    .Append(
+                        (unsoldRatio * 100f).ToString(
+                            "F1",
+                            CultureInfo.InvariantCulture))
                     .Append('%')
                     .Append(" stock=").Append(physicalStock)
                     .Append(" storageLimit=").Append(storageLimit)
                     .Append(" meanPriority=")
-                    .Append(service.m_MeanPriority.ToString("F3"))
+                    .Append(
+                        service.m_MeanPriority.ToString(
+                            "F3",
+                            CultureInfo.InvariantCulture))
                     .Append(" customersCurrent=").Append(currentCustomers)
                     .Append(" customersMonthly=").Append(monthlyCustomers)
                     .Append(" customersMax=").Append(maxCustomers)
@@ -269,32 +329,28 @@ namespace CityWatchdog.Systems
                     .Append(workers)
                     .Append('/')
                     .Append(maxWorkers)
+                    .Append(" input1=").Append(process.m_Input1.m_Resource)
+                    .Append(" input2=").Append(process.m_Input2.m_Resource)
+                    .Append(" buyRequestResource=").Append(buyRequestResource)
+                    .Append(" buyRequestAmount=").Append(buyRequestAmount)
                     .Append(" restockTrips=").Append(pendingRestockTrips)
-                    .Append(" restockAmount=").Append(pendingRestock)
+                    .Append(" restockAmount=").Append(pendingRestockAmount)
                     .Append(" noCustomersCounter=")
                     .Append(notifications.m_NoCustomersCounter)
                     .AppendLine();
             }
 
-            if (!writeFullReport)
-            {
-                return;
-            }
-
-            m_LastReportFrame = frame;
-
             LogUtils.Debug(
-                () =>
-                    $"[CWD-NOCUSTOMERS] frame={frame} " +
-                    $"commercial={commercialCount} " +
-                    $"warnings={warningCount} " +
-                    $">90%={over90Count} " +
-                    $">95%={over95Count} " +
-                    $">99%={over99Count}");
+                $"[CWD-NOCUSTOMERS] scan={m_ScanCount} " +
+                $"commercial={commercialCount} " +
+                $"warnings={warningCount} " +
+                $">90%={over90Count} " +
+                $">95%={over95Count} " +
+                $">99%={over99Count}");
 
-            if (details != null && details.Length > 0)
+            if (writeFullReport && details.Length > 0)
             {
-                LogUtils.Debug(() => details.ToString());
+                LogUtils.Debug(details.ToString());
             }
         }
 
@@ -302,8 +358,10 @@ namespace CityWatchdog.Systems
         {
             try
             {
-                return m_PrefabSystem.GetPrefab<CompanyPrefab>(prefab).name
-                    ?? prefab.ToString();
+                CompanyPrefab companyPrefab =
+                    m_PrefabSystem.GetPrefab<CompanyPrefab>(prefab);
+
+                return companyPrefab.name ?? prefab.ToString();
             }
             catch
             {
@@ -311,26 +369,43 @@ namespace CityWatchdog.Systems
             }
         }
 
-        private string GetBuildingPrefabName(Entity building)
+        private string GetBuildingPrefabName(
+            Entity building,
+            ComponentLookup<PrefabRef> prefabRefs)
         {
             if (building == Entity.Null ||
-                !EntityManager.HasComponent<PrefabRef>(building))
+                !prefabRefs.HasComponent(building))
             {
                 return "<none>";
             }
 
             Entity prefab =
-                EntityManager.GetComponentData<PrefabRef>(building).m_Prefab;
+                prefabRefs[building].m_Prefab;
 
             try
             {
-                return m_PrefabSystem.GetPrefab<BuildingPrefab>(prefab).name
-                    ?? prefab.ToString();
+                BuildingPrefab buildingPrefab =
+                    m_PrefabSystem.GetPrefab<BuildingPrefab>(prefab);
+
+                return buildingPrefab.name ?? prefab.ToString();
             }
             catch
             {
                 return prefab.ToString();
             }
+        }
+
+        private static bool IsInputResource(
+            Resource resource,
+            IndustrialProcessData process)
+        {
+            if (resource == Resource.NoResource)
+            {
+                return false;
+            }
+
+            return resource == process.m_Input1.m_Resource ||
+                resource == process.m_Input2.m_Resource;
         }
     }
 }
