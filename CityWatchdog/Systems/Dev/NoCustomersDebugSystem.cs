@@ -340,7 +340,7 @@ namespace CityWatchdog.Systems
                     .AppendLine();
             }
 
-            LogUtils.Debug(
+            LogUtils.Info(
                 $"[CWD-NOCUSTOMERS] scan={m_ScanCount} " +
                 $"commercial={commercialCount} " +
                 $"warnings={warningCount} " +
@@ -350,7 +350,7 @@ namespace CityWatchdog.Systems
 
             if (writeFullReport && details.Length > 0)
             {
-                LogUtils.Debug(details.ToString());
+                LogUtils.Info(details.ToString());
             }
         }
 
