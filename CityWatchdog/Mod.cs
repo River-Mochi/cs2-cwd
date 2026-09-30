@@ -158,6 +158,10 @@ namespace CityWatchdog
                 updateSystem.UpdateAt<RoadArrowControlSystem>(SystemUpdatePhase.UIUpdate);
                 updateSystem.UpdateAt<InterfaceScaleControlSystem>(SystemUpdatePhase.UIUpdate);
                 updateSystem.UpdateAt<AlertIconSystem>(SystemUpdatePhase.ModificationEnd);
+
+#if DEBUG
+                updateSystem.UpdateAt<NoCustomersDebugSystem>(SystemUpdatePhase.ModificationEnd);
+#endif
             }
             catch (Exception ex)
             {
