@@ -11,6 +11,7 @@
 
 #if DEBUG
 
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -33,8 +34,7 @@ namespace CityWatchdog.Systems
         // Power-of-two interval required by CS2's UpdateSystem.
         private const int kScanInterval = 2048;
 
-        // Write detailed per-company rows every fourth scan.
-        private const int kFullReportEveryScans = 4;
+        private readonly Dictionary<Entity, CompanySnapshot> m_PreviousSnapshots = new();
 
         private PrefabSystem m_PrefabSystem = null!;
         private int m_ScanCount;
@@ -56,7 +56,8 @@ namespace CityWatchdog.Systems
         {
             base.OnGameLoaded(serializationContext);
 
-            // Systems survive city loads; start the diagnostics fresh for each city.
+            // Systems survive city loads, but city entities do not.
+            m_PreviousSnapshots.Clear();
             m_ScanCount = 0;
         }
 
@@ -64,9 +65,7 @@ namespace CityWatchdog.Systems
         {
             m_ScanCount++;
 
-            bool writeFullReport =
-                m_ScanCount == 1 ||
-                m_ScanCount % kFullReportEveryScans == 0;
+            bool writeBaseline = m_ScanCount == 1;
 
             int commercialCount = 0;
             int warningCount = 0;
@@ -74,9 +73,11 @@ namespace CityWatchdog.Systems
             int over95Count = 0;
             int over99Count = 0;
 
-            // DEBUG-only, low-frequency diagnostic. Keeping this non-null also lets
-            // nullable analysis protect us instead of suppressing CS8602.
-            StringBuilder details = new(4096);
+            Dictionary<Resource, ResourceSummary> resourceSummaries = new();
+            HashSet<Entity> seenCompanies = new();
+
+            StringBuilder baseline = new(4096);
+            StringBuilder events = new(2048);
 
             ComponentLookup<Game.Companies.ServiceCompanyData> serviceCompanyDatas =
                 SystemAPI.GetComponentLookup<Game.Companies.ServiceCompanyData>(true);
@@ -109,10 +110,10 @@ namespace CityWatchdog.Systems
                 SystemAPI.GetBufferLookup<Game.Citizens.TripNeeded>(true);
 
             foreach ((
-                RefRO<ServiceAvailable> serviceRef,
-                RefRO<CompanyNotifications> notificationsRef,
-                RefRO<PrefabRef> companyPrefabRef,
-                RefRO<PropertyRenter> propertyRenterRef,
+                RefRO<Game.Companies.ServiceAvailable> serviceRef,
+                RefRO<Game.Companies.CompanyNotifications> notificationsRef,
+                RefRO<Game.Prefabs.PrefabRef> companyPrefabRef,
+                RefRO<Game.Buildings.PropertyRenter> propertyRenterRef,
                 Entity company) in
                 SystemAPI
                     .Query<
@@ -125,6 +126,7 @@ namespace CityWatchdog.Systems
                     .WithEntityAccess())
             {
                 commercialCount++;
+                seenCompanies.Add(company);
 
                 Game.Companies.ServiceAvailable service =
                     serviceRef.ValueRO;
@@ -152,11 +154,23 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
+                Resource soldResource =
+                    process.m_Output.m_Resource;
+
                 float unsoldRatio =
                     (float)service.m_ServiceAvailable /
                     serviceData.m_MaxService;
 
-                if (unsoldRatio > 0.90f)
+                bool over90 = unsoldRatio > 0.90f;
+                bool hasWarning =
+                    notifications.m_NoCustomersEntity != Entity.Null;
+
+                if (hasWarning)
+                {
+                    warningCount++;
+                }
+
+                if (over90)
                 {
                     over90Count++;
                 }
@@ -171,24 +185,6 @@ namespace CityWatchdog.Systems
                     over99Count++;
                 }
 
-                bool hasWarning =
-                    notifications.m_NoCustomersEntity != Entity.Null;
-
-                if (!hasWarning)
-                {
-                    continue;
-                }
-
-                warningCount++;
-
-                if (!writeFullReport)
-                {
-                    continue;
-                }
-
-                Resource soldResource =
-                    process.m_Output.m_Resource;
-
                 int physicalStock = 0;
 
                 if (resourcesLookup.HasBuffer(company))
@@ -200,30 +196,6 @@ namespace CityWatchdog.Systems
                         EconomyUtils.GetResources(
                             soldResource,
                             resources);
-                }
-
-                int storageLimit = -1;
-
-                if (storageLimits.HasComponent(companyPrefab))
-                {
-                    storageLimit =
-                        storageLimits[companyPrefab].m_Limit;
-                }
-
-                int workers = -1;
-
-                if (employeesLookup.HasBuffer(company))
-                {
-                    workers =
-                        employeesLookup[company].Length;
-                }
-
-                int maxWorkers = -1;
-
-                if (workProviders.HasComponent(company))
-                {
-                    maxWorkers =
-                        workProviders[company].m_MaxWorkers;
                 }
 
                 int currentCustomers = -1;
@@ -243,6 +215,23 @@ namespace CityWatchdog.Systems
 
                     maxCustomers =
                         statistics.m_MaxNumberOfCustomers;
+                }
+
+                Resource buyRequestResource =
+                    Resource.NoResource;
+
+                int buyRequestAmount = 0;
+
+                if (resourceBuyers.HasComponent(company))
+                {
+                    Game.Companies.ResourceBuyer buyer =
+                        resourceBuyers[company];
+
+                    buyRequestResource =
+                        buyer.m_ResourceNeeded;
+
+                    buyRequestAmount =
+                        buyer.m_AmountNeeded;
                 }
 
                 int pendingRestockTrips = 0;
@@ -270,75 +259,95 @@ namespace CityWatchdog.Systems
                     }
                 }
 
-                Resource buyRequestResource =
-                    Resource.NoResource;
+                CompanySnapshot snapshot = new(
+                    hasWarning,
+                    over90,
+                    soldResource,
+                    service.m_ServiceAvailable,
+                    serviceData.m_MaxService,
+                    physicalStock,
+                    currentCustomers,
+                    monthlyCustomers,
+                    buyRequestResource,
+                    buyRequestAmount,
+                    pendingRestockTrips,
+                    pendingRestockAmount);
 
-                int buyRequestAmount = 0;
-
-                if (resourceBuyers.HasComponent(company))
-                {
-                    Game.Companies.ResourceBuyer buyer =
-                        resourceBuyers[company];
-
-                    buyRequestResource =
-                        buyer.m_ResourceNeeded;
-
-                    buyRequestAmount =
-                        buyer.m_AmountNeeded;
-                }
+                UpdateResourceSummary(
+                    resourceSummaries,
+                    snapshot);
 
                 Entity building =
                     propertyRenterRef.ValueRO.m_Property;
 
-                string companyName =
-                    GetCompanyPrefabName(companyPrefab);
+                if (writeBaseline && hasWarning)
+                {
+                    int storageLimit = -1;
 
-                string buildingName =
-                    GetBuildingPrefabName(
+                    if (storageLimits.HasComponent(companyPrefab))
+                    {
+                        storageLimit =
+                            storageLimits[companyPrefab].m_Limit;
+                    }
+
+                    int workers = -1;
+
+                    if (employeesLookup.HasBuffer(company))
+                    {
+                        workers =
+                            employeesLookup[company].Length;
+                    }
+
+                    int maxWorkers = -1;
+
+                    if (workProviders.HasComponent(company))
+                    {
+                        maxWorkers =
+                            workProviders[company].m_MaxWorkers;
+                    }
+
+                    AppendBaselineRow(
+                        baseline,
+                        company,
+                        companyPrefab,
                         building,
+                        soldResource,
+                        service,
+                        serviceData,
+                        physicalStock,
+                        storageLimit,
+                        currentCustomers,
+                        monthlyCustomers,
+                        maxCustomers,
+                        workers,
+                        maxWorkers,
+                        process,
+                        buyRequestResource,
+                        buyRequestAmount,
+                        pendingRestockTrips,
+                        pendingRestockAmount,
+                        notifications,
                         prefabRefs);
+                }
 
-                details
-                    .Append("[CWD-NOCUSTOMERS] ")
-                    .Append("company=").Append(company)
-                    .Append(" companyPrefab=").Append(companyName)
-                    .Append(" building=").Append(building)
-                    .Append(" buildingPrefab=").Append(buildingName)
-                    .Append(" resource=").Append(soldResource)
-                    .Append(" service=")
-                    .Append(service.m_ServiceAvailable)
-                    .Append('/')
-                    .Append(serviceData.m_MaxService)
-                    .Append(" unsold=")
-                    .Append(
-                        (unsoldRatio * 100f).ToString(
-                            "F1",
-                            CultureInfo.InvariantCulture))
-                    .Append('%')
-                    .Append(" stock=").Append(physicalStock)
-                    .Append(" storageLimit=").Append(storageLimit)
-                    .Append(" meanPriority=")
-                    .Append(
-                        service.m_MeanPriority.ToString(
-                            "F3",
-                            CultureInfo.InvariantCulture))
-                    .Append(" customersCurrent=").Append(currentCustomers)
-                    .Append(" customersMonthly=").Append(monthlyCustomers)
-                    .Append(" customersMax=").Append(maxCustomers)
-                    .Append(" workers=")
-                    .Append(workers)
-                    .Append('/')
-                    .Append(maxWorkers)
-                    .Append(" input1=").Append(process.m_Input1.m_Resource)
-                    .Append(" input2=").Append(process.m_Input2.m_Resource)
-                    .Append(" buyRequestResource=").Append(buyRequestResource)
-                    .Append(" buyRequestAmount=").Append(buyRequestAmount)
-                    .Append(" restockTrips=").Append(pendingRestockTrips)
-                    .Append(" restockAmount=").Append(pendingRestockAmount)
-                    .Append(" noCustomersCounter=")
-                    .Append(notifications.m_NoCustomersCounter)
-                    .AppendLine();
+                if (m_PreviousSnapshots.TryGetValue(
+                    company,
+                    out CompanySnapshot previous))
+                {
+                    AppendTransitionIfNeeded(
+                        events,
+                        company,
+                        companyPrefab,
+                        building,
+                        previous,
+                        snapshot,
+                        prefabRefs);
+                }
+
+                m_PreviousSnapshots[company] = snapshot;
             }
+
+            RemoveStaleCompanies(seenCompanies);
 
             LogUtils.Info(
                 $"[CWD-NOCUSTOMERS] scan={m_ScanCount} " +
@@ -348,9 +357,371 @@ namespace CityWatchdog.Systems
                 $">95%={over95Count} " +
                 $">99%={over99Count}");
 
-            if (writeFullReport && details.Length > 0)
+            LogResourceSummaries(resourceSummaries);
+
+            if (baseline.Length > 0)
             {
-                LogUtils.Info(details.ToString());
+                LogUtils.Info(baseline.ToString());
+            }
+
+            if (events.Length > 0)
+            {
+                LogUtils.Info(events.ToString());
+            }
+        }
+
+        private void AppendBaselineRow(
+            StringBuilder baseline,
+            Entity company,
+            Entity companyPrefab,
+            Entity building,
+            Resource soldResource,
+            Game.Companies.ServiceAvailable service,
+            Game.Companies.ServiceCompanyData serviceData,
+            int physicalStock,
+            int storageLimit,
+            int currentCustomers,
+            int monthlyCustomers,
+            int maxCustomers,
+            int workers,
+            int maxWorkers,
+            Game.Prefabs.IndustrialProcessData process,
+            Resource buyRequestResource,
+            int buyRequestAmount,
+            int pendingRestockTrips,
+            int pendingRestockAmount,
+            Game.Companies.CompanyNotifications notifications,
+            ComponentLookup<Game.Prefabs.PrefabRef> prefabRefs)
+        {
+            float unsoldRatio =
+                (float)service.m_ServiceAvailable /
+                serviceData.m_MaxService;
+
+            baseline
+                .Append("[CWD-NOCUSTOMERS-BASELINE] ")
+                .Append("company=").Append(company)
+                .Append(" companyPrefab=")
+                .Append(GetCompanyPrefabName(companyPrefab))
+                .Append(" building=").Append(building)
+                .Append(" buildingPrefab=")
+                .Append(GetBuildingPrefabName(building, prefabRefs))
+                .Append(" resource=").Append(soldResource)
+                .Append(" service=")
+                .Append(service.m_ServiceAvailable)
+                .Append('/')
+                .Append(serviceData.m_MaxService)
+                .Append(" unsold=")
+                .Append(
+                    (unsoldRatio * 100f).ToString(
+                        "F1",
+                        CultureInfo.InvariantCulture))
+                .Append('%')
+                .Append(" stock=").Append(physicalStock)
+                .Append(" storageLimit=").Append(storageLimit)
+                .Append(" meanPriority=")
+                .Append(
+                    service.m_MeanPriority.ToString(
+                        "F3",
+                        CultureInfo.InvariantCulture))
+                .Append(" customersCurrent=").Append(currentCustomers)
+                .Append(" customersMonthly=").Append(monthlyCustomers)
+                .Append(" customersMax=").Append(maxCustomers)
+                .Append(" workers=")
+                .Append(workers)
+                .Append('/')
+                .Append(maxWorkers)
+                .Append(" input1=").Append(process.m_Input1.m_Resource)
+                .Append(" input2=").Append(process.m_Input2.m_Resource)
+                .Append(" buyRequestResource=").Append(buyRequestResource)
+                .Append(" buyRequestAmount=").Append(buyRequestAmount)
+                .Append(" restockTrips=").Append(pendingRestockTrips)
+                .Append(" restockAmount=").Append(pendingRestockAmount)
+                .Append(" noCustomersCounter=")
+                .Append(notifications.m_NoCustomersCounter)
+                .AppendLine();
+        }
+
+        private void AppendTransitionIfNeeded(
+            StringBuilder events,
+            Entity company,
+            Entity companyPrefab,
+            Entity building,
+            CompanySnapshot previous,
+            CompanySnapshot current,
+            ComponentLookup<Game.Prefabs.PrefabRef> prefabRefs)
+        {
+            bool warningChanged =
+                previous.HasWarning != current.HasWarning;
+
+            bool thresholdChanged =
+                previous.Over90 != current.Over90;
+
+            bool buyRequestChanged =
+                previous.BuyRequestResource != current.BuyRequestResource ||
+                previous.BuyRequestAmount != current.BuyRequestAmount;
+
+            bool restockChanged =
+                previous.RestockTrips != current.RestockTrips ||
+                previous.RestockAmount != current.RestockAmount;
+
+            if (!warningChanged &&
+                !thresholdChanged &&
+                !buyRequestChanged &&
+                !restockChanged)
+            {
+                return;
+            }
+
+            StringBuilder eventNames = new();
+
+            if (warningChanged)
+            {
+                eventNames.Append(
+                    current.HasWarning
+                        ? "WARNING_ON"
+                        : "WARNING_CLEARED");
+            }
+
+            if (thresholdChanged)
+            {
+                AppendEventSeparator(eventNames);
+
+                eventNames.Append(
+                    current.Over90
+                        ? "OVER90_ENTER"
+                        : "OVER90_EXIT");
+            }
+
+            if (buyRequestChanged)
+            {
+                AppendEventSeparator(eventNames);
+
+                if (previous.BuyRequestResource == Resource.NoResource &&
+                    current.BuyRequestResource != Resource.NoResource)
+                {
+                    eventNames.Append("BUY_REQUEST_ON");
+                }
+                else if (previous.BuyRequestResource != Resource.NoResource &&
+                         current.BuyRequestResource == Resource.NoResource)
+                {
+                    eventNames.Append("BUY_REQUEST_OFF");
+                }
+                else
+                {
+                    eventNames.Append("BUY_REQUEST_CHANGED");
+                }
+            }
+
+            if (restockChanged)
+            {
+                AppendEventSeparator(eventNames);
+                eventNames.Append("RESTOCK_CHANGED");
+            }
+
+            events
+                .Append("[CWD-NOCUSTOMERS-EVENT] ")
+                .Append("scan=").Append(m_ScanCount)
+                .Append(" event=").Append(eventNames)
+                .Append(" company=").Append(company)
+                .Append(" companyPrefab=")
+                .Append(GetCompanyPrefabName(companyPrefab))
+                .Append(" building=").Append(building)
+                .Append(" buildingPrefab=")
+                .Append(GetBuildingPrefabName(building, prefabRefs))
+                .Append(" resource=").Append(current.Resource)
+                .Append(" warning=")
+                .Append(previous.HasWarning)
+                .Append("->")
+                .Append(current.HasWarning)
+                .Append(" over90=")
+                .Append(previous.Over90)
+                .Append("->")
+                .Append(current.Over90)
+                .Append(" service=")
+                .Append(previous.ServiceAvailable)
+                .Append("->")
+                .Append(current.ServiceAvailable)
+                .Append('/')
+                .Append(current.MaxService)
+                .Append(" stock=")
+                .Append(previous.PhysicalStock)
+                .Append("->")
+                .Append(current.PhysicalStock)
+                .Append(" customersCurrent=")
+                .Append(previous.CurrentCustomers)
+                .Append("->")
+                .Append(current.CurrentCustomers)
+                .Append(" customersMonthly=")
+                .Append(previous.MonthlyCustomers)
+                .Append("->")
+                .Append(current.MonthlyCustomers)
+                .Append(" buyRequest=")
+                .Append(previous.BuyRequestResource)
+                .Append(':')
+                .Append(previous.BuyRequestAmount)
+                .Append("->")
+                .Append(current.BuyRequestResource)
+                .Append(':')
+                .Append(current.BuyRequestAmount)
+                .Append(" restock=")
+                .Append(previous.RestockTrips)
+                .Append('/')
+                .Append(previous.RestockAmount)
+                .Append("->")
+                .Append(current.RestockTrips)
+                .Append('/')
+                .Append(current.RestockAmount)
+                .AppendLine();
+        }
+
+        private static void AppendEventSeparator(
+            StringBuilder eventNames)
+        {
+            if (eventNames.Length > 0)
+            {
+                eventNames.Append('|');
+            }
+        }
+
+        private static void UpdateResourceSummary(
+            Dictionary<Resource, ResourceSummary> summaries,
+            CompanySnapshot snapshot)
+        {
+            summaries.TryGetValue(
+                snapshot.Resource,
+                out ResourceSummary summary);
+
+            summary.CompanyCount++;
+
+            if (snapshot.HasWarning)
+            {
+                summary.WarningCount++;
+            }
+
+            if (snapshot.Over90)
+            {
+                summary.Over90Count++;
+            }
+
+            summary.TotalServiceAvailable +=
+                snapshot.ServiceAvailable;
+
+            summary.TotalMaxService +=
+                snapshot.MaxService;
+
+            summary.TotalPhysicalStock +=
+                snapshot.PhysicalStock;
+
+            if (snapshot.CurrentCustomers >= 0)
+            {
+                summary.TotalCurrentCustomers +=
+                    snapshot.CurrentCustomers;
+            }
+
+            if (snapshot.MonthlyCustomers >= 0)
+            {
+                summary.TotalMonthlyCustomers +=
+                    snapshot.MonthlyCustomers;
+            }
+
+            summaries[snapshot.Resource] = summary;
+        }
+
+        private void LogResourceSummaries(
+            Dictionary<Resource, ResourceSummary> summaries)
+        {
+            if (summaries.Count == 0)
+            {
+                return;
+            }
+
+            List<Resource> resources =
+                new(summaries.Keys);
+
+            resources.Sort(
+                (left, right) =>
+                    string.CompareOrdinal(
+                        left.ToString(),
+                        right.ToString()));
+
+            StringBuilder report = new(2048);
+
+            for (int i = 0; i < resources.Count; i++)
+            {
+                Resource resource = resources[i];
+                ResourceSummary summary = summaries[resource];
+
+                float warningPercent =
+                    summary.CompanyCount > 0
+                        ? 100f *
+                          summary.WarningCount /
+                          summary.CompanyCount
+                        : 0f;
+
+                float unsoldPercent =
+                    summary.TotalMaxService > 0
+                        ? 100f *
+                          summary.TotalServiceAvailable /
+                          summary.TotalMaxService
+                        : 0f;
+
+                report
+                    .Append("[CWD-NOCUSTOMERS-RESOURCE] ")
+                    .Append("scan=").Append(m_ScanCount)
+                    .Append(" resource=").Append(resource)
+                    .Append(" companies=").Append(summary.CompanyCount)
+                    .Append(" warnings=").Append(summary.WarningCount)
+                    .Append(" warningRate=")
+                    .Append(
+                        warningPercent.ToString(
+                            "F1",
+                            CultureInfo.InvariantCulture))
+                    .Append('%')
+                    .Append(" over90=").Append(summary.Over90Count)
+                    .Append(" service=")
+                    .Append(summary.TotalServiceAvailable)
+                    .Append('/')
+                    .Append(summary.TotalMaxService)
+                    .Append(" unsold=")
+                    .Append(
+                        unsoldPercent.ToString(
+                            "F1",
+                            CultureInfo.InvariantCulture))
+                    .Append('%')
+                    .Append(" stock=")
+                    .Append(summary.TotalPhysicalStock)
+                    .Append(" customersCurrent=")
+                    .Append(summary.TotalCurrentCustomers)
+                    .Append(" customersMonthly=")
+                    .Append(summary.TotalMonthlyCustomers)
+                    .AppendLine();
+            }
+
+            LogUtils.Info(report.ToString());
+        }
+
+        private void RemoveStaleCompanies(
+            HashSet<Entity> seenCompanies)
+        {
+            if (m_PreviousSnapshots.Count == 0)
+            {
+                return;
+            }
+
+            List<Entity> staleCompanies = new();
+
+            foreach (Entity company in m_PreviousSnapshots.Keys)
+            {
+                if (!seenCompanies.Contains(company))
+                {
+                    staleCompanies.Add(company);
+                }
+            }
+
+            for (int i = 0; i < staleCompanies.Count; i++)
+            {
+                m_PreviousSnapshots.Remove(
+                    staleCompanies[i]);
             }
         }
 
@@ -371,7 +742,7 @@ namespace CityWatchdog.Systems
 
         private string GetBuildingPrefabName(
             Entity building,
-            ComponentLookup<PrefabRef> prefabRefs)
+            ComponentLookup<Game.Prefabs.PrefabRef> prefabRefs)
         {
             if (building == Entity.Null ||
                 !prefabRefs.HasComponent(building))
@@ -406,6 +777,75 @@ namespace CityWatchdog.Systems
 
             return resource == process.m_Input1.m_Resource ||
                 resource == process.m_Input2.m_Resource;
+        }
+
+        private readonly struct CompanySnapshot
+        {
+            public CompanySnapshot(
+                bool hasWarning,
+                bool over90,
+                Resource resource,
+                int serviceAvailable,
+                int maxService,
+                int physicalStock,
+                int currentCustomers,
+                int monthlyCustomers,
+                Resource buyRequestResource,
+                int buyRequestAmount,
+                int restockTrips,
+                int restockAmount)
+            {
+                HasWarning = hasWarning;
+                Over90 = over90;
+                Resource = resource;
+                ServiceAvailable = serviceAvailable;
+                MaxService = maxService;
+                PhysicalStock = physicalStock;
+                CurrentCustomers = currentCustomers;
+                MonthlyCustomers = monthlyCustomers;
+                BuyRequestResource = buyRequestResource;
+                BuyRequestAmount = buyRequestAmount;
+                RestockTrips = restockTrips;
+                RestockAmount = restockAmount;
+            }
+
+            public bool HasWarning { get; }
+
+            public bool Over90 { get; }
+
+            public Resource Resource { get; }
+
+            public int ServiceAvailable { get; }
+
+            public int MaxService { get; }
+
+            public int PhysicalStock { get; }
+
+            public int CurrentCustomers { get; }
+
+            public int MonthlyCustomers { get; }
+
+            public Resource BuyRequestResource { get; }
+
+            public int BuyRequestAmount { get; }
+
+            public int RestockTrips { get; }
+
+            public int RestockAmount { get; }
+        }
+
+        private struct ResourceSummary
+        {
+            public int CompanyCount;
+            public int WarningCount;
+            public int Over90Count;
+
+            public long TotalServiceAvailable;
+            public long TotalMaxService;
+            public long TotalPhysicalStock;
+
+            public long TotalCurrentCustomers;
+            public long TotalMonthlyCustomers;
         }
     }
 }

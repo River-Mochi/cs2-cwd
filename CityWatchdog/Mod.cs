@@ -162,6 +162,17 @@ namespace CityWatchdog
 
 #if DEBUG
                 updateSystem.UpdateAfter<
+                    CommercialDemandBalanceSystem,
+                    HouseholdBehaviorSystem>(
+                        SystemUpdatePhase.GameSimulation);
+
+                updateSystem.UpdateAfter<
+                    NoCustomersDebugSystem,
+                    ServiceCompanySystem>(
+                        SystemUpdatePhase.GameSimulation);
+#endif
+#if DEBUG
+                updateSystem.UpdateAfter<
                     NoCustomersDebugSystem,
                     ServiceCompanySystem>(
                         SystemUpdatePhase.GameSimulation);
