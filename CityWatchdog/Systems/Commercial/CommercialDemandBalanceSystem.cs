@@ -7,12 +7,14 @@
 // ================= </copyright> ======================
 
 // File: Systems/Commercial/CommercialDemandBalanceSystem.cs
-// Purpose: DEBUG-only prototype that gently biases new household shopping needs
-// toward commercially abundant resources while preserving vanilla preferences.
+// Purpose: DEBUG-only prototype that gently biases newly-created household
+// shopping needs toward commercially abundant resources while preserving
+// vanilla shopping choices whenever no abundance boost is applied.
 
 #if DEBUG
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -35,18 +37,113 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
+    /// <summary>
+    /// Captures households whose shopping need is empty immediately before
+    /// vanilla HouseholdBehaviorSystem runs.
+    /// </summary>
+    public partial class CommercialDemandBalancePrepareSystem : GameSystemBase
+    {
+        private readonly HashSet<Entity> m_EmptyNeeds = new();
+
+        private SimulationSystem m_SimulationSystem = null!;
+        private uint m_CapturedSimulationFrame = uint.MaxValue;
+
+        internal bool HasSnapshotFor(uint simulationFrame)
+        {
+            return m_CapturedSimulationFrame == simulationFrame;
+        }
+
+        internal bool WasEmptyBeforeVanilla(Entity household)
+        {
+            return m_EmptyNeeds.Contains(household);
+        }
+
+        public override int GetUpdateInterval(SystemUpdatePhase phase)
+        {
+            return 262144 /
+                (HouseholdBehaviorSystem.kUpdatesPerDay * 16);
+        }
+
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+
+            m_SimulationSystem =
+                World.GetOrCreateSystemManaged<SimulationSystem>();
+        }
+
+        protected override void OnGameLoaded(Context serializationContext)
+        {
+            base.OnGameLoaded(serializationContext);
+
+            m_EmptyNeeds.Clear();
+            m_CapturedSimulationFrame = uint.MaxValue;
+        }
+
+        protected override void OnUpdate()
+        {
+            m_EmptyNeeds.Clear();
+
+            uint simulationFrame =
+                m_SimulationSystem.frameIndex;
+
+            uint updateFrame =
+                SimulationUtils.GetUpdateFrameWithInterval(
+                    simulationFrame,
+                    (uint)GetUpdateInterval(
+                        SystemUpdatePhase.GameSimulation),
+                    16);
+
+            foreach ((
+                RefRO<Game.Citizens.HouseholdNeed> needRef,
+                Entity household) in
+                SystemAPI
+                    .Query<
+                        RefRO<Game.Citizens.HouseholdNeed>>()
+                    .WithAll<
+                        Game.Citizens.Household,
+                        Game.Citizens.HouseholdCitizen,
+                        Game.Economy.Resources,
+                        Game.Buildings.PropertyRenter>()
+                    .WithNone<
+                        Game.Citizens.TouristHousehold,
+                        Game.Citizens.HomelessHousehold,
+                        Game.Agents.MovingAway>()
+                    .WithNone<
+                        Game.Common.Deleted,
+                        Game.Tools.Temp>()
+                    .WithSharedComponentFilter(
+                        new Game.Simulation.UpdateFrame(updateFrame))
+                    .WithEntityAccess())
+            {
+                if (needRef.ValueRO.m_Resource ==
+                    Resource.NoResource)
+                {
+                    m_EmptyNeeds.Add(household);
+                }
+            }
+
+            m_CapturedSimulationFrame =
+                simulationFrame;
+        }
+    }
+
+    /// <summary>
+    /// Runs immediately after vanilla HouseholdBehaviorSystem and adds only
+    /// the extra probability mass caused by commercial overabundance.
+    /// </summary>
     public partial class CommercialDemandBalanceSystem : GameSystemBase
     {
-        // Vanilla commercial production starts throttling at 80% unsold service.
-        // Below this point, do not alter the vanilla shopping weight.
+        // Vanilla commercial production already starts throttling at 80%
+        // unsold service. Below this level we leave shopping completely vanilla.
         private const float kBoostStartUnsoldRatio = 0.80f;
 
-        // At 100% unsold service, vanilla shopping weight can be at most 3x.
+        // At 100% unsold service, the resource gets at most 3x its normal
+        // vanilla shopping weight.
         private const float kMaxWeightMultiplier = 3f;
 
-        // HouseholdBehaviorSystem runs every 64 simulation frames in 1.6.2.
-        // Logging every 32 executions lines up with about 2048 simulation frames,
-        // matching our NoCustomers diagnostic cadence.
+        // HouseholdBehaviorSystem runs every 64 simulation frames.
+        // 32 executions gives us roughly the same diagnostic window as before.
         private const int kLogEveryUpdates = 32;
 
         private readonly long[] m_ServiceAvailable =
@@ -61,7 +158,8 @@ namespace CityWatchdog.Systems
         private readonly float[] m_WeightMultiplier =
             new float[EconomyUtils.ResourceCount];
 
-        private readonly int[] m_WorkingWeights =
+        // This contains only EXTRA weight above vanilla.
+        private readonly int[] m_ExtraWeights =
             new int[EconomyUtils.ResourceCount];
 
         private readonly int[] m_WindowChangedFrom =
@@ -72,15 +170,17 @@ namespace CityWatchdog.Systems
 
         private SimulationSystem m_SimulationSystem = null!;
         private ResourceSystem m_ResourceSystem = null!;
+        private CommercialDemandBalancePrepareSystem m_PrepareSystem = null!;
 
         private int m_UpdateCount;
-        private int m_WindowNeeds;
+        private int m_WindowNewNeeds;
+        private int m_WindowEligibleNeeds;
+        private int m_WindowExtraDraws;
         private int m_WindowChanged;
         private bool m_ConfigurationLogged;
 
         public override int GetUpdateInterval(SystemUpdatePhase phase)
         {
-            // Keep exactly the same interval as vanilla HouseholdBehaviorSystem.
             return 262144 /
                 (HouseholdBehaviorSystem.kUpdatesPerDay * 16);
         }
@@ -94,6 +194,10 @@ namespace CityWatchdog.Systems
 
             m_ResourceSystem =
                 World.GetOrCreateSystemManaged<ResourceSystem>();
+
+            m_PrepareSystem =
+                World.GetOrCreateSystemManaged<
+                    CommercialDemandBalancePrepareSystem>();
         }
 
         protected override void OnGameLoaded(Context serializationContext)
@@ -116,6 +220,11 @@ namespace CityWatchdog.Systems
                 m_UnsoldRatio.Length);
 
             Array.Clear(
+                m_ExtraWeights,
+                0,
+                m_ExtraWeights.Length);
+
+            Array.Clear(
                 m_WindowChangedFrom,
                 0,
                 m_WindowChangedFrom.Length);
@@ -131,14 +240,28 @@ namespace CityWatchdog.Systems
             }
 
             m_UpdateCount = 0;
-            m_WindowNeeds = 0;
+            m_WindowNewNeeds = 0;
+            m_WindowEligibleNeeds = 0;
+            m_WindowExtraDraws = 0;
             m_WindowChanged = 0;
             m_ConfigurationLogged = false;
         }
 
         protected override void OnUpdate()
         {
-            if (!SystemAPI.TryGetSingleton<Game.Prefabs.EconomyParameterData>(
+            uint simulationFrame =
+                m_SimulationSystem.frameIndex;
+
+            // Defensive check: only touch needs if our before-vanilla snapshot
+            // came from this exact simulation update.
+            if (!m_PrepareSystem.HasSnapshotFor(
+                    simulationFrame))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingleton<
+                    Game.Prefabs.EconomyParameterData>(
                     out Game.Prefabs.EconomyParameterData economyParameters))
             {
                 return;
@@ -146,7 +269,8 @@ namespace CityWatchdog.Systems
 
             float resourceDemandMultiplier = 1f;
 
-            if (SystemAPI.TryGetSingleton<Game.Prefabs.Modes.ModeSettingData>(
+            if (SystemAPI.TryGetSingleton<
+                    Game.Prefabs.Modes.ModeSettingData>(
                     out Game.Prefabs.Modes.ModeSettingData modeSetting) &&
                 modeSetting.m_Enable)
             {
@@ -214,21 +338,23 @@ namespace CityWatchdog.Systems
                 m_ConfigurationLogged = true;
 
                 LogUtils.Info(
-                    "[CWD-BALANCE] ACTIVE DEBUG prototype. " +
-                    "Vanilla household shopping weights are boosted only for " +
-                    "commercial resources above 80% unsold service; " +
-                    "maximum boost is 3.00x at 100% unsold. " +
-                    "Vehicle shopping is left vanilla for this first test.");
+                    "[CWD-BALANCE] ACTIVE DEBUG prototype v2. " +
+                    "Only newly-created vanilla retail shopping needs may be " +
+                    "redirected. Vanilla choices are preserved unless commercial " +
+                    "abundance adds extra probability above 80% unsold service. " +
+                    "Vehicles, leisure resources, and office resources remain vanilla.");
             }
 
             uint updateFrame =
                 SimulationUtils.GetUpdateFrameWithInterval(
-                    m_SimulationSystem.frameIndex,
+                    simulationFrame,
                     (uint)GetUpdateInterval(
                         SystemUpdatePhase.GameSimulation),
                     16);
 
-            int activeNeeds = 0;
+            int newNeeds = 0;
+            int eligibleNeeds = 0;
+            int extraDraws = 0;
             int changedNeeds = 0;
 
             foreach ((
@@ -255,21 +381,31 @@ namespace CityWatchdog.Systems
                         new Game.Simulation.UpdateFrame(updateFrame))
                     .WithEntityAccess())
             {
+                // This household already had a need before vanilla ran.
+                // Do not reconsider an existing/pending shopping request.
+                if (!m_PrepareSystem.WasEmptyBeforeVanilla(
+                        householdEntity))
+                {
+                    continue;
+                }
+
                 Game.Citizens.HouseholdNeed need =
                     needRef.ValueRO;
 
+                // Vanilla did not create a need during this update.
                 if (need.m_Resource == Resource.NoResource ||
                     need.m_Amount <= 0)
                 {
                     continue;
                 }
 
-                activeNeeds++;
+                newNeeds++;
 
-                // Vehicle shopping has a special vanilla code path that can create
-                // a household-owned car when the purchase amount is exactly 50.
-                // Leave those decisions untouched in the first prototype.
-                if (need.m_Resource == Resource.Vehicles)
+                // Keep vehicles, leisure, office services, and resources without
+                // an active commercial retail market completely vanilla.
+                if (!IsEligibleRetailResource(
+                        need.m_Resource,
+                        ref resourceDatas))
                 {
                     continue;
                 }
@@ -281,6 +417,8 @@ namespace CityWatchdog.Systems
                 {
                     continue;
                 }
+
+                eligibleNeeds++;
 
                 Game.Citizens.Household household =
                     householdRef.ValueRO;
@@ -300,25 +438,34 @@ namespace CityWatchdog.Systems
 
                 int carCount = 0;
 
-                if (ownedVehicles.HasBuffer(householdEntity))
+                if (ownedVehicles.HasBuffer(
+                        householdEntity))
                 {
                     carCount =
                         ownedVehicles[householdEntity].Length;
                 }
 
                 Resource targetResource =
-                    SelectBalancedResource(
+                    SelectExtraAbundanceResource(
                         householdEntity,
-                        m_SimulationSystem.frameIndex,
+                        simulationFrame,
                         disposableIncome,
                         affluenceIncome,
                         carCount,
                         citizens,
                         ref citizenDatas,
-                        ref resourceDatas);
+                        ref resourceDatas,
+                        out bool usedExtraDraw);
+
+                if (!usedExtraDraw)
+                {
+                    // This is the normal case: keep vanilla's choice untouched.
+                    continue;
+                }
+
+                extraDraws++;
 
                 if (targetResource == Resource.NoResource ||
-                    targetResource == Resource.Vehicles ||
                     targetResource == need.m_Resource)
                 {
                     continue;
@@ -343,10 +490,12 @@ namespace CityWatchdog.Systems
                 }
 
                 Entity targetPrefab =
-                    m_ResourceSystem.GetPrefab(targetResource);
+                    m_ResourceSystem.GetPrefab(
+                        targetResource);
 
                 if (targetPrefab == Entity.Null ||
-                    !resourceDatas.HasComponent(targetPrefab))
+                    !resourceDatas.HasComponent(
+                        targetPrefab))
                 {
                     continue;
                 }
@@ -396,20 +545,24 @@ namespace CityWatchdog.Systems
                 changedNeeds++;
 
                 if (fromIndex >= 0 &&
-                    fromIndex < m_WindowChangedFrom.Length)
+                    fromIndex <
+                    m_WindowChangedFrom.Length)
                 {
                     m_WindowChangedFrom[fromIndex]++;
                 }
 
                 if (toIndex >= 0 &&
-                    toIndex < m_WindowChangedTo.Length)
+                    toIndex <
+                    m_WindowChangedTo.Length)
                 {
                     m_WindowChangedTo[toIndex]++;
                 }
             }
 
             m_UpdateCount++;
-            m_WindowNeeds += activeNeeds;
+            m_WindowNewNeeds += newNeeds;
+            m_WindowEligibleNeeds += eligibleNeeds;
+            m_WindowExtraDraws += extraDraws;
             m_WindowChanged += changedNeeds;
 
             if (m_UpdateCount % kLogEveryUpdates == 0)
@@ -436,7 +589,9 @@ namespace CityWatchdog.Systems
                 0,
                 m_MaxService.Length);
 
-            for (int i = 0; i < m_UnsoldRatio.Length; i++)
+            for (int i = 0;
+                i < m_UnsoldRatio.Length;
+                i++)
             {
                 m_UnsoldRatio[i] = 0f;
                 m_WeightMultiplier[i] = 1f;
@@ -449,7 +604,8 @@ namespace CityWatchdog.Systems
                     .Query<
                         RefRO<Game.Companies.ServiceAvailable>,
                         RefRO<Game.Prefabs.PrefabRef>>()
-                    .WithAll<Game.Companies.CommercialCompany>()
+                    .WithAll<
+                        Game.Companies.CommercialCompany>()
                     .WithNone<
                         Game.Common.Deleted,
                         Game.Tools.Temp>())
@@ -466,7 +622,8 @@ namespace CityWatchdog.Systems
                 }
 
                 Game.Companies.ServiceCompanyData serviceData =
-                    serviceCompanyDatas[companyPrefab];
+                    serviceCompanyDatas[
+                        companyPrefab];
 
                 if (serviceData.m_MaxService <= 0)
                 {
@@ -475,25 +632,32 @@ namespace CityWatchdog.Systems
 
                 Resource resource =
                     industrialProcessDatas[
-                        companyPrefab].m_Output.m_Resource;
+                        companyPrefab]
+                        .m_Output.m_Resource;
 
                 int resourceIndex =
-                    EconomyUtils.GetResourceIndex(resource);
+                    EconomyUtils.GetResourceIndex(
+                        resource);
 
                 if (resourceIndex < 0 ||
-                    resourceIndex >= m_ServiceAvailable.Length)
+                    resourceIndex >=
+                    m_ServiceAvailable.Length)
                 {
                     continue;
                 }
 
                 int available =
                     math.clamp(
-                        serviceRef.ValueRO.m_ServiceAvailable,
+                        serviceRef.ValueRO
+                            .m_ServiceAvailable,
                         0,
                         serviceData.m_MaxService);
 
-                m_ServiceAvailable[resourceIndex] += available;
-                m_MaxService[resourceIndex] +=
+                m_ServiceAvailable[
+                    resourceIndex] += available;
+
+                m_MaxService[
+                    resourceIndex] +=
                     serviceData.m_MaxService;
             }
 
@@ -516,18 +680,20 @@ namespace CityWatchdog.Systems
                 m_UnsoldRatio[i] =
                     math.saturate(unsoldRatio);
 
-                // Do not influence actual vehicle demand until the general
-                // balancing approach has been proven safe.
-                if (resource == Resource.Vehicles)
+                if (resource == Resource.Vehicles ||
+                    EconomyUtils.IsOfficeResource(
+                        resource))
                 {
                     continue;
                 }
 
                 Entity resourcePrefab =
-                    m_ResourceSystem.GetPrefab(resource);
+                    m_ResourceSystem.GetPrefab(
+                        resource);
 
                 if (resourcePrefab == Entity.Null ||
-                    !resourceDatas.HasComponent(resourcePrefab))
+                    !resourceDatas.HasComponent(
+                        resourcePrefab))
                 {
                     continue;
                 }
@@ -535,14 +701,15 @@ namespace CityWatchdog.Systems
                 Game.Prefabs.ResourceData resourceData =
                     resourceDatas[resourcePrefab];
 
-                // HouseholdBehaviorSystem excludes leisure resources from its
-                // normal shopping-resource lottery. Preserve that behavior.
+                // Meals, Lodging, Entertainment, Recreation, etc. continue
+                // through their normal leisure/tourism systems.
                 if (resourceData.m_IsLeisure)
                 {
                     continue;
                 }
 
-                if (unsoldRatio <= kBoostStartUnsoldRatio)
+                if (unsoldRatio <=
+                    kBoostStartUnsoldRatio)
                 {
                     continue;
                 }
@@ -562,7 +729,52 @@ namespace CityWatchdog.Systems
             }
         }
 
-        private Resource SelectBalancedResource(
+        private bool IsEligibleRetailResource(
+            Resource resource,
+            ref ComponentLookup<Game.Prefabs.ResourceData>
+                resourceDatas)
+        {
+            if (resource == Resource.NoResource ||
+                resource == Resource.Vehicles ||
+                EconomyUtils.IsOfficeResource(resource))
+            {
+                return false;
+            }
+
+            int resourceIndex =
+                EconomyUtils.GetResourceIndex(resource);
+
+            if (resourceIndex < 0 ||
+                resourceIndex >= m_MaxService.Length ||
+                m_MaxService[resourceIndex] <= 0)
+            {
+                return false;
+            }
+
+            Entity resourcePrefab =
+                m_ResourceSystem.GetPrefab(resource);
+
+            if (resourcePrefab == Entity.Null ||
+                !resourceDatas.HasComponent(resourcePrefab))
+            {
+                return false;
+            }
+
+            return !resourceDatas[
+                resourcePrefab].m_IsLeisure;
+        }
+
+        /// <summary>
+        /// Keeps the existing vanilla choice unless the random draw lands in
+        /// the EXTRA probability mass created by abundance.
+        ///
+        /// If vanilla weights are W and abundance adds E:
+        ///     keep vanilla choice with probability W / (W + E)
+        ///     choose from extra weights with probability E / (W + E)
+        ///
+        /// Therefore when E == 0 there is exactly zero intervention.
+        /// </summary>
+        private Resource SelectExtraAbundanceResource(
             Entity household,
             uint simulationFrame,
             int disposableIncome,
@@ -572,14 +784,18 @@ namespace CityWatchdog.Systems
             ref ComponentLookup<Game.Citizens.Citizen>
                 citizenDatas,
             ref ComponentLookup<Game.Prefabs.ResourceData>
-                resourceDatas)
+                resourceDatas,
+            out bool usedExtraDraw)
         {
-            Array.Clear(
-                m_WorkingWeights,
-                0,
-                m_WorkingWeights.Length);
+            usedExtraDraw = false;
 
-            int totalWeight = 0;
+            Array.Clear(
+                m_ExtraWeights,
+                0,
+                m_ExtraWeights.Length);
+
+            int vanillaRetailWeight = 0;
+            int extraWeightTotal = 0;
 
             ResourceIterator iterator =
                 ResourceIterator.GetIterator();
@@ -589,17 +805,20 @@ namespace CityWatchdog.Systems
                 Resource resource =
                     iterator.resource;
 
-                Entity resourcePrefab =
-                    m_ResourceSystem.GetPrefab(resource);
-
-                if (resourcePrefab == Entity.Null ||
-                    !resourceDatas.HasComponent(resourcePrefab))
+                if (!IsEligibleRetailResource(
+                        resource,
+                        ref resourceDatas))
                 {
                     continue;
                 }
 
+                Entity resourcePrefab =
+                    m_ResourceSystem.GetPrefab(
+                        resource);
+
                 Game.Prefabs.ResourceData resourceData =
-                    resourceDatas[resourcePrefab];
+                    resourceDatas[
+                        resourcePrefab];
 
                 int vanillaWeight =
                     HouseholdBehaviorSystem
@@ -617,45 +836,71 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
-                int resourceIndex =
-                    EconomyUtils.GetResourceIndex(resource);
-
-                if (resourceIndex < 0 ||
-                    resourceIndex >= m_WorkingWeights.Length)
-                {
-                    continue;
-                }
-
-                float multiplier =
-                    resource == Resource.Vehicles
-                        ? 1f
-                        : m_WeightMultiplier[resourceIndex];
-
-                int adjustedWeight =
-                    math.max(
-                        1,
-                        (int)math.round(
-                            vanillaWeight *
-                            multiplier));
-
-                // Defensive guard. Vanilla weights are much smaller than this,
-                // but do not allow an overflow to corrupt the random selection.
-                if (totalWeight >
-                    int.MaxValue - adjustedWeight)
+                if (vanillaRetailWeight >
+                    int.MaxValue - vanillaWeight)
                 {
                     return Resource.NoResource;
                 }
 
-                m_WorkingWeights[resourceIndex] =
-                    adjustedWeight;
+                vanillaRetailWeight +=
+                    vanillaWeight;
 
-                totalWeight += adjustedWeight;
+                int resourceIndex =
+                    EconomyUtils.GetResourceIndex(
+                        resource);
+
+                float multiplier =
+                    m_WeightMultiplier[
+                        resourceIndex];
+
+                if (multiplier <= 1.001f)
+                {
+                    continue;
+                }
+
+                int extraWeight =
+                    math.max(
+                        0,
+                        (int)math.round(
+                            vanillaWeight *
+                            (multiplier - 1f)));
+
+                if (extraWeight <= 0)
+                {
+                    continue;
+                }
+
+                if (extraWeightTotal >
+                    int.MaxValue - extraWeight)
+                {
+                    return Resource.NoResource;
+                }
+
+                m_ExtraWeights[
+                    resourceIndex] =
+                    extraWeight;
+
+                extraWeightTotal +=
+                    extraWeight;
             }
 
-            if (totalWeight <= 0)
+            // This is the critical difference from v1:
+            // no abundance = absolutely no new random resource selection.
+            if (vanillaRetailWeight <= 0 ||
+                extraWeightTotal <= 0)
             {
                 return Resource.NoResource;
             }
+
+            if (vanillaRetailWeight >
+                int.MaxValue - extraWeightTotal)
+            {
+                return Resource.NoResource;
+            }
+
+            int combinedWeight =
+                vanillaRetailWeight +
+                extraWeightTotal;
 
             uint seed =
                 unchecked(
@@ -664,7 +909,8 @@ namespace CityWatchdog.Systems
                     ((uint)household.Version *
                         2891336453u) ^
                     (simulationFrame *
-                        277803737u));
+                        277803737u) ^
+                    0xA511E9B3u);
 
             if (seed == 0)
             {
@@ -675,14 +921,28 @@ namespace CityWatchdog.Systems
                 new(seed);
 
             int selection =
-                random.NextInt(totalWeight);
+                random.NextInt(
+                    combinedWeight);
+
+            // The draw landed in vanilla's original probability mass.
+            // Keep the resource vanilla already chose.
+            if (selection <
+                vanillaRetailWeight)
+            {
+                return Resource.NoResource;
+            }
+
+            usedExtraDraw = true;
+
+            selection -=
+                vanillaRetailWeight;
 
             for (int i = 0;
-                i < m_WorkingWeights.Length;
+                i < m_ExtraWeights.Length;
                 i++)
             {
                 int weight =
-                    m_WorkingWeights[i];
+                    m_ExtraWeights[i];
 
                 if (weight <= 0)
                 {
@@ -703,18 +963,29 @@ namespace CityWatchdog.Systems
         private void LogWindow()
         {
             float changedPercent =
-                m_WindowNeeds > 0
+                m_WindowEligibleNeeds > 0
                     ? 100f *
                       m_WindowChanged /
-                      m_WindowNeeds
+                      m_WindowEligibleNeeds
+                    : 0f;
+
+            float extraDrawPercent =
+                m_WindowEligibleNeeds > 0
+                    ? 100f *
+                      m_WindowExtraDraws /
+                      m_WindowEligibleNeeds
                     : 0f;
 
             LogUtils.Info(
                 "[CWD-BALANCE] " +
                 $"updates={kLogEveryUpdates} " +
-                $"shoppingNeeds={m_WindowNeeds} " +
+                $"newNeeds={m_WindowNewNeeds} " +
+                $"eligibleRetail={m_WindowEligibleNeeds} " +
+                $"extraDraws={m_WindowExtraDraws} " +
+                $"extraRate=" +
+                $"{extraDrawPercent.ToString("F1", CultureInfo.InvariantCulture)}% " +
                 $"rebalanced={m_WindowChanged} " +
-                $"rate=" +
+                $"changeRate=" +
                 $"{changedPercent.ToString("F1", CultureInfo.InvariantCulture)}%");
 
             StringBuilder details =
@@ -741,7 +1012,8 @@ namespace CityWatchdog.Systems
                     EconomyUtils.GetResource(i);
 
                 details
-                    .Append("[CWD-BALANCE-RESOURCE] ")
+                    .Append(
+                        "[CWD-BALANCE-RESOURCE] ")
                     .Append("resource=")
                     .Append(resource)
                     .Append(" unsold=")
@@ -759,15 +1031,18 @@ namespace CityWatchdog.Systems
                                 CultureInfo.InvariantCulture))
                     .Append('x')
                     .Append(" changedFrom=")
-                    .Append(m_WindowChangedFrom[i])
+                    .Append(
+                        m_WindowChangedFrom[i])
                     .Append(" changedTo=")
-                    .Append(m_WindowChangedTo[i])
+                    .Append(
+                        m_WindowChangedTo[i])
                     .AppendLine();
             }
 
             if (details.Length > 0)
             {
-                LogUtils.Info(details.ToString());
+                LogUtils.Info(
+                    details.ToString());
             }
 
             Array.Clear(
@@ -780,7 +1055,9 @@ namespace CityWatchdog.Systems
                 0,
                 m_WindowChangedTo.Length);
 
-            m_WindowNeeds = 0;
+            m_WindowNewNeeds = 0;
+            m_WindowEligibleNeeds = 0;
+            m_WindowExtraDraws = 0;
             m_WindowChanged = 0;
         }
     }
