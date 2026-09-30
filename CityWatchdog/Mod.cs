@@ -25,6 +25,7 @@ namespace CityWatchdog
     using Game;
     using Game.Modding;
     using Game.SceneFlow;
+    using Game.Simulation;
 
     public sealed class Mod : IMod
     {
@@ -160,10 +161,10 @@ namespace CityWatchdog
                 updateSystem.UpdateAt<AlertIconSystem>(SystemUpdatePhase.ModificationEnd);
 
 #if DEBUG
-updateSystem.UpdateAfter<
-    NoCustomersDebugSystem,
-    Game.Simulation.ServiceCompanySystem>(
-        SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateAfter<
+                    NoCustomersDebugSystem,
+                    ServiceCompanySystem>(
+                        SystemUpdatePhase.GameSimulation);
 #endif
 
             }
