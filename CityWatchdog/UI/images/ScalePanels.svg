@@ -1,47 +1,48 @@
-<svg version="1.1"
-     viewBox="2.3 2.3 27.4 27.4"
-     xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="cutouts">
+      <rect width="32" height="32" fill="white"/>
 
-  <!-- Large rounded-square window -->
-  <rect
-    x="3.5"
-    y="3.5"
-    width="25"
-    height="25"
-    rx="3.7"
-    fill="none"
-    stroke="#000"
-    stroke-width="2.6"/>
-
-  <!-- Smaller bottom-left window -->
-  <rect
-    x="4.25"
-    y="18.95"
-    width="10.2"
-    height="8.55"
-    rx="2.0"
-    fill="none"
-    stroke="#000"
-    stroke-width="1.7"/>
-
-  <!-- Arrow: nudged upward slightly -->
-  <path d="M20.7 7.75 H24.3"
+      <!-- bottom-left rectangle / L shape: unchanged -->
+      <path
+        d="M5 18.05 H16 V26"
         fill="none"
-        stroke="#000"
+        stroke="black"
         stroke-width="2.3"
-        stroke-linecap="round"
-        stroke-linejoin="round"/>
-  <path d="M24.3 7.75 V11.35"
-        fill="none"
-        stroke="#000"
-        stroke-width="2.3"
-        stroke-linecap="round"
-        stroke-linejoin="round"/>
-  <path d="M19.7 12.35 L24.3 7.75"
-        fill="none"
-        stroke="#000"
-        stroke-width="2.3"
-        stroke-linecap="round"
-        stroke-linejoin="round"/>
+        stroke-linecap="butt"
+        stroke-linejoin="miter"/>
 
+      <!-- diagonal arrow shaft -->
+      <path
+        d="M16.05 18.15 L24.25 9.15"
+        fill="none"
+        stroke="black"
+        stroke-width="2.3"
+        stroke-linecap="butt"/>
+
+      <!-- connected arrow-head arms: slightly longer and a little lower -->
+      <path
+        d="M19.85 9.15 H24.25 V13.55"
+        fill="none"
+        stroke="black"
+        stroke-width="2.3"
+        stroke-linecap="butt"
+        stroke-linejoin="miter"/>
+    </mask>
+  </defs>
+
+  <path
+    fill="currentColor"
+    mask="url(#cutouts)"
+    d="
+      M7 6.5
+      H25
+      C26.1 6.5 27 7.4 27 8.5
+      V24
+      C27 25.1 26.1 26 25 26
+      H5
+      V8.5
+      C5 7.4 5.9 6.5 7 6.5
+      Z
+    "/>
 </svg>

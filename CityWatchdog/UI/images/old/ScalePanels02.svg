@@ -1,0 +1,47 @@
+<svg version="1.1"
+     viewBox="2.3 2.3 27.4 27.4"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Large rounded-square window -->
+  <rect
+    x="3.5"
+    y="3.5"
+    width="25"
+    height="25"
+    rx="3.7"
+    fill="none"
+    stroke="#000"
+    stroke-width="2.6"/>
+
+  <!-- Smaller bottom-left window -->
+  <rect
+    x="4.25"
+    y="18.95"
+    width="10.2"
+    height="8.55"
+    rx="2.0"
+    fill="none"
+    stroke="#000"
+    stroke-width="1.7"/>
+
+  <!-- Arrow: nudged upward slightly -->
+  <path d="M20.7 7.75 H24.3"
+        fill="none"
+        stroke="#000"
+        stroke-width="2.3"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+  <path d="M24.3 7.75 V11.35"
+        fill="none"
+        stroke="#000"
+        stroke-width="2.3"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+  <path d="M19.7 12.35 L24.3 7.75"
+        fill="none"
+        stroke="#000"
+        stroke-width="2.3"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+</svg>
