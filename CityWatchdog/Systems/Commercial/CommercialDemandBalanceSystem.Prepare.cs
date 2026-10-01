@@ -7,7 +7,7 @@
 // ================= </copyright> ======================
 
 // File: Systems/Commercial/CommercialDemandBalanceSystem.Prepare.cs
-// Purpose: DEBUG-only snapshot of households immediately before vanilla creates shopping needs.
+// Purpose: DEBUG-only snapshot immediately before vanilla household shopping.
 
 #if DEBUG
 
@@ -16,7 +16,6 @@ using System.Collections.Generic;
 using Colossal.Serialization.Entities;
 
 using Game;
-using Game.Citizens;
 using Game.Economy;
 using Game.Simulation;
 
@@ -25,27 +24,40 @@ using Unity.Entities;
 namespace CityWatchdog.Systems
 {
     /// <summary>
-    /// Records households whose shopping need is empty immediately before
-    /// vanilla HouseholdBehaviorSystem runs.
+    /// Records households that enter vanilla HouseholdBehaviorSystem with no
+    /// existing shopping need and no remaining household-consumption resources.
+    ///
+    /// If one of these households still has no need after vanilla runs, V4 may
+    /// use it for controlled corrective physical shopping demand.
     /// </summary>
-    public partial class CommercialDemandBalancePrepareSystem : GameSystemBase
+    public partial class CommercialDemandBalancePrepareSystem
+        : GameSystemBase
     {
-        private readonly HashSet<Entity> m_EmptyNeeds = new();
+        private readonly HashSet<Entity>
+            m_ReadyHouseholds = new();
 
-        private SimulationSystem m_SimulationSystem = null!;
-        private uint m_CapturedSimulationFrame = uint.MaxValue;
+        private SimulationSystem
+            m_SimulationSystem = null!;
 
-        internal bool HasSnapshotFor(uint simulationFrame)
+        private uint m_CapturedSimulationFrame =
+            uint.MaxValue;
+
+        internal bool HasSnapshotFor(
+            uint simulationFrame)
         {
-            return m_CapturedSimulationFrame == simulationFrame;
+            return m_CapturedSimulationFrame ==
+                simulationFrame;
         }
 
-        internal bool WasEmptyBeforeVanilla(Entity household)
+        internal bool WasReadyBeforeVanilla(
+            Entity household)
         {
-            return m_EmptyNeeds.Contains(household);
+            return m_ReadyHouseholds.Contains(
+                household);
         }
 
-        public override int GetUpdateInterval(SystemUpdatePhase phase)
+        public override int GetUpdateInterval(
+            SystemUpdatePhase phase)
         {
             return 262144 /
                 (HouseholdBehaviorSystem.kUpdatesPerDay * 16);
@@ -56,20 +68,25 @@ namespace CityWatchdog.Systems
             base.OnCreate();
 
             m_SimulationSystem =
-                World.GetOrCreateSystemManaged<SimulationSystem>();
+                World.GetOrCreateSystemManaged<
+                    SimulationSystem>();
         }
 
-        protected override void OnGameLoaded(Context serializationContext)
+        protected override void OnGameLoaded(
+            Context serializationContext)
         {
-            base.OnGameLoaded(serializationContext);
+            base.OnGameLoaded(
+                serializationContext);
 
-            m_EmptyNeeds.Clear();
-            m_CapturedSimulationFrame = uint.MaxValue;
+            m_ReadyHouseholds.Clear();
+
+            m_CapturedSimulationFrame =
+                uint.MaxValue;
         }
 
         protected override void OnUpdate()
         {
-            m_EmptyNeeds.Clear();
+            m_ReadyHouseholds.Clear();
 
             uint simulationFrame =
                 m_SimulationSystem.frameIndex;
@@ -82,16 +99,20 @@ namespace CityWatchdog.Systems
                     16);
 
             foreach ((
-                RefRO<Game.Citizens.HouseholdNeed> needRef,
+                RefRO<Game.Citizens.HouseholdNeed>
+                    needRef,
+                RefRO<Game.Citizens.Household>
+                    householdRef,
                 Entity household) in
                 SystemAPI
                     .Query<
-                        RefRO<Game.Citizens.HouseholdNeed>>()
+                        RefRO<
+                            Game.Citizens.HouseholdNeed>,
+                        RefRO<
+                            Game.Citizens.Household>>()
                     .WithAll<
-                        Game.Citizens.Household,
                         Game.Citizens.HouseholdCitizen,
-                        Game.Economy.Resources>()
-                    .WithAll<
+                        Game.Economy.Resources,
                         Game.Buildings.PropertyRenter>()
                     .WithNone<
                         Game.Citizens.TouristHousehold,
@@ -101,14 +122,26 @@ namespace CityWatchdog.Systems
                         Game.Common.Deleted,
                         Game.Tools.Temp>()
                     .WithSharedComponentFilter(
-                        new Game.Simulation.UpdateFrame(updateFrame))
+                        new UpdateFrame(updateFrame))
                     .WithEntityAccess())
             {
-                if (needRef.ValueRO.m_Resource ==
+                if (needRef.ValueRO.m_Resource !=
                     Resource.NoResource)
                 {
-                    m_EmptyNeeds.Add(household);
+                    continue;
                 }
+
+                // Vanilla exits early while households still have previously
+                // purchased resources to consume. Do not turn those households
+                // into extra shoppers.
+                if (householdRef.ValueRO.m_Resources >
+                    0)
+                {
+                    continue;
+                }
+
+                m_ReadyHouseholds.Add(
+                    household);
             }
 
             m_CapturedSimulationFrame =
