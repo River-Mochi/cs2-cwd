@@ -177,6 +177,11 @@ namespace CityWatchdog
                     SystemUpdatePhase.GameSimulation);
 
             updateSystem.UpdateAfter<
+                CommercialLeisureDemandSystem,
+                CitizenBehaviorSystem>(
+                    SystemUpdatePhase.GameSimulation);
+
+            updateSystem.UpdateAfter<
                 NoCustomersDebugSystem,
                 ServiceCompanySystem>(
                     SystemUpdatePhase.GameSimulation);
