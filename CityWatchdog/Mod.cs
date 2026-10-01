@@ -161,20 +161,25 @@ namespace CityWatchdog
                 updateSystem.UpdateAt<AlertIconSystem>(SystemUpdatePhase.ModificationEnd);
 
 #if DEBUG
-                updateSystem.UpdateBefore<
-                    CommercialDemandBalancePrepareSystem,
-                    HouseholdBehaviorSystem>(
-                        SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateBefore<
+                CommercialDemandBalancePrepareSystem,
+                HouseholdBehaviorSystem>(
+                    SystemUpdatePhase.GameSimulation);
 
-                updateSystem.UpdateAfter<
-                    CommercialDemandBalanceSystem,
-                    HouseholdBehaviorSystem>(
-                        SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateAfter<
+                CommercialDemandBalanceSystem,
+                HouseholdBehaviorSystem>(
+                    SystemUpdatePhase.GameSimulation);
 
-                updateSystem.UpdateAfter<
-                    NoCustomersDebugSystem,
-                    ServiceCompanySystem>(
-                        SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateAfter<
+                CommercialVehicleDemandSystem,
+                CommercialDemandBalanceSystem>(
+                    SystemUpdatePhase.GameSimulation);
+
+            updateSystem.UpdateAfter<
+                NoCustomersDebugSystem,
+                ServiceCompanySystem>(
+                    SystemUpdatePhase.GameSimulation);
 #endif
 
             }
