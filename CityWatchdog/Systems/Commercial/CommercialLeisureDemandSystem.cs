@@ -156,13 +156,12 @@ namespace CityWatchdog.Systems
                     "destination, travel, payment, and Service consumption.");
             }
 
-            uint updateFrame =
-                SimulationUtils.GetUpdateFrameWithInterval(
-                    simulationFrame,
-                    (uint)CitizenBehaviorSystem
-                        .GetUpdateInterval(
-                            SystemUpdatePhase.GameSimulation),
-                    16);
+           uint updateFrame =
+            SimulationUtils.GetUpdateFrameWithInterval(
+                simulationFrame,
+                (uint)GetUpdateInterval(
+                    SystemUpdatePhase.GameSimulation),
+                16);
 
             ComponentLookup<
                 Game.Citizens.Household>
@@ -261,21 +260,23 @@ namespace CityWatchdog.Systems
                     .WithNone<
                         Game.Citizens.Leisure,
                         Game.Citizens.TravelPurpose,
-                        Game.Citizens.AttendingMeeting,
-                        Game.Citizens.HealthProblem>()
+                        Game.Citizens.AttendingMeeting>()
                     .WithNone<
+                        Game.Citizens.HealthProblem,
                         Game.Citizens.Worker,
-                        Game.Citizens.Student,
-                        Game.Citizens.Criminal,
-                        Game.Companies.ResourceBuyer>()
+                        Game.Citizens.Student>()
                     .WithNone<
-                        Game.Common.Target,
+                        Game.Citizens.Criminal,
+                        Game.Companies.ResourceBuyer,
+                        Game.Common.Target>()
+                    .WithNone<
                         Game.Common.Deleted,
                         Game.Tools.Temp>()
                     .WithSharedComponentFilter(
                         new UpdateFrame(updateFrame))
                     .WithEntityAccess())
             {
+                   
                 examined++;
 
                 if (m_LeisureSeekerBudget <= 0)
