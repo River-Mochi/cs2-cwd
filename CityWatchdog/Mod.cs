@@ -178,7 +178,7 @@ namespace CityWatchdog
 
             updateSystem.UpdateAfter<
                 CommercialLeisureDemandSystem,
-                CitizenBehaviorSystem>(
+                LeisureSystem>(
                     SystemUpdatePhase.GameSimulation);
 
             updateSystem.UpdateAfter<

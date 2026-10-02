@@ -7,7 +7,7 @@
 // ================= </copyright> ======================
 
 // File: Systems/Commercial/CommercialLeisureDemandSystem.cs
-// Purpose: DEBUG-only corrective demand for commercial leisure providers.
+// Purpose: DEBUG-only targeted correction for commercial leisure providers.
 
 #if DEBUG
 
@@ -26,41 +26,36 @@ using Unity.Mathematics;
 namespace CityWatchdog.Systems
 {
     /// <summary>
-    /// Adds controlled extra vanilla leisure attempts when commercial leisure
-    /// providers have excessive unused Service.
+    /// Adds a small number of targeted real leisure trips to individual
+    /// commercial leisure providers with excessive unused Service.
     ///
-    /// Only citizens who still need leisure and are currently blocked by
-    /// vanilla's LeisureSeekerCooldown are considered. From that point onward,
-    /// vanilla LeisureSystem chooses the leisure type, destination, travel,
-    /// spending, Service consumption, and leisure gain normally.
+    /// This does not create generic extra leisure and hope vanilla happens
+    /// to choose the struggling business. The target company is selected
+    /// directly, while normal TripNeeded and Leisure systems still handle
+    /// travel, spending, Service consumption, and leisure gain.
     /// </summary>
     public partial class CommercialLeisureDemandSystem : GameSystemBase
     {
         private SimulationSystem m_SimulationSystem = null!;
         private TimeSystem m_TimeSystem = null!;
-        private ClimateSystem m_ClimateSystem = null!;
         private EndFrameBarrier m_EndFrameBarrier = null!;
 
         private int m_UpdateCount;
 
         private int m_WindowExamined;
         private int m_WindowEligible;
-        private int m_WindowInjected;
+        private int m_WindowTargeted;
+
+        private long m_WindowEstimatedService;
 
         private bool m_ConfigurationLogged;
 
         public override int GetUpdateInterval(
             SystemUpdatePhase phase)
         {
-            // Match CitizenBehaviorSystem so we inspect the same citizen
-            // UpdateFrame bucket immediately after vanilla citizen behavior.
-            return 16;
-        }
-
-        public override int GetUpdateOffset(
-            SystemUpdatePhase phase)
-        {
-            return 11;
+            // Match vanilla LeisureSystem exactly: 64 simulation frames.
+            return 262144 /
+                LeisureSystem.kUpdatePerDay;
         }
 
         protected override void OnCreate()
@@ -74,10 +69,6 @@ namespace CityWatchdog.Systems
             m_TimeSystem =
                 World.GetOrCreateSystemManaged<
                     TimeSystem>();
-
-            m_ClimateSystem =
-                World.GetOrCreateSystemManaged<
-                    ClimateSystem>();
 
             m_EndFrameBarrier =
                 World.GetOrCreateSystemManaged<
@@ -96,7 +87,9 @@ namespace CityWatchdog.Systems
 
             m_WindowExamined = 0;
             m_WindowEligible = 0;
-            m_WindowInjected = 0;
+            m_WindowTargeted = 0;
+
+            m_WindowEstimatedService = 0;
 
             m_ConfigurationLogged = false;
         }
@@ -140,28 +133,28 @@ namespace CityWatchdog.Systems
                 industrialProcessDatas,
                 leisureProviderDatas);
 
-            PrepareLeisureBudget();
+            PrepareTargetedVisitBudget();
 
             if (!m_ConfigurationLogged)
             {
                 m_ConfigurationLogged = true;
 
                 LogUtils.Info(
-                    "[CWD-LEISURE] ACTIVE DEBUG leisure prototype. " +
-                    "Entertainment, Meals, and Recreation shops above " +
-                    "85% unused Service create a small adaptive increase " +
-                    "in real vanilla leisure attempts. Only idle residents " +
-                    "with low leisure and an active vanilla leisure cooldown " +
-                    "are used. Vanilla still chooses the leisure type, " +
-                    "destination, travel, payment, and Service consumption.");
+                    "[CWD-LEISURE] ACTIVE DEBUG targeted leisure prototype. " +
+                    "Only individual Entertainment, Meals, and Recreation " +
+                    "providers above 85% unused Service are corrective targets. " +
+                    "Low-leisure residents on vanilla leisure cooldown may be " +
+                    "sent directly to one of those providers. Normal TripNeeded " +
+                    "and LeisureSystem behavior still handles the actual trip, " +
+                    "payment, Service consumption, and leisure gain.");
             }
 
-           uint updateFrame =
-            SimulationUtils.GetUpdateFrameWithInterval(
-                simulationFrame,
-                (uint)GetUpdateInterval(
-                    SystemUpdatePhase.GameSimulation),
-                16);
+            uint updateFrame =
+                SimulationUtils.GetUpdateFrameWithInterval(
+                    simulationFrame,
+                    (uint)GetUpdateInterval(
+                        SystemUpdatePhase.GameSimulation),
+                    16);
 
             ComponentLookup<
                 Game.Citizens.Household>
@@ -205,6 +198,13 @@ namespace CityWatchdog.Systems
                         Game.Agents.MovingAway>(
                             true);
 
+            ComponentLookup<
+                Game.Objects.Transform>
+                transforms =
+                    SystemAPI.GetComponentLookup<
+                        Game.Objects.Transform>(
+                            true);
+
             BufferLookup<
                 Game.Citizens.TripNeeded>
                 tripBuffers =
@@ -231,13 +231,9 @@ namespace CityWatchdog.Systems
 
             int examined = 0;
             int eligible = 0;
-            int injected = 0;
+            int targeted = 0;
 
-            float weather =
-                m_ClimateSystem.precipitation.value;
-
-            float temperature =
-                m_ClimateSystem.temperature;
+            long estimatedService = 0;
 
             foreach ((
                 RefRO<Game.Citizens.Citizen>
@@ -276,17 +272,14 @@ namespace CityWatchdog.Systems
                         new UpdateFrame(updateFrame))
                     .WithEntityAccess())
             {
-                   
                 examined++;
 
-                if (m_LeisureSeekerBudget <= 0)
+                if (m_TargetedVisitBudget <= 0 ||
+                    m_ProviderPressures.Count == 0)
                 {
                     continue;
                 }
 
-                // Only use a cooldown that is still actively blocking vanilla.
-                // That guarantees CitizenBehaviorSystem did not also create a
-                // Leisure component for this citizen during this update.
                 uint cooldownAge =
                     simulationFrame -
                     cooldownRef.ValueRO
@@ -305,8 +298,8 @@ namespace CityWatchdog.Systems
                 Game.Citizens.CitizenAge age =
                     citizen.GetAge();
 
-                // Keep this first prototype conservative: independent adults
-                // and elderly residents only.
+                // Keep this prototype conservative.
+                // No work/school schedules are being overridden.
                 if (age !=
                         Game.Citizens.CitizenAge.Adult &&
                     age !=
@@ -315,8 +308,6 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
-                // Vanilla only becomes interested in leisure when this counter
-                // is below 128. Do not force leisure on an already-satisfied cim.
                 if (citizen.m_LeisureCounter >= 128)
                 {
                     continue;
@@ -357,11 +348,13 @@ namespace CityWatchdog.Systems
                         propertyRenters[
                             householdEntity];
 
-                if (propertyRenter.m_Property ==
-                        Entity.Null ||
+                Entity home =
+                    propertyRenter.m_Property;
+
+                if (home == Entity.Null ||
                     currentBuildingRef.ValueRO
                         .m_CurrentBuilding !=
-                        propertyRenter.m_Property)
+                        home)
                 {
                     continue;
                 }
@@ -374,7 +367,9 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
-                if (!HasCommercialLeisurePreference(
+                if (!TrySelectTargetProvider(
+                        citizenEntity,
+                        simulationFrame,
                         citizen,
                         households[
                             householdEntity],
@@ -382,13 +377,18 @@ namespace CityWatchdog.Systems
                         householdCitizens[
                             householdEntity].Length,
                         economyParameters,
-                        weather,
-                        temperature))
+                        home,
+                        ref transforms,
+                        out int providerIndex))
                 {
                     continue;
                 }
 
                 eligible++;
+
+                ProviderPressure provider =
+                    m_ProviderPressures[
+                        providerIndex];
 
                 float2 sleepTime =
                     CitizenBehaviorSystem.GetSleepTime(
@@ -410,12 +410,15 @@ namespace CityWatchdog.Systems
                         1f,
                         timeLeft * 262144f);
 
+                // Everything is deferred together to EndFrameBarrier.
+                // LeisureSystem already ran this simulation update, so it
+                // cannot also start a competing random leisure search.
                 commandBuffer.AddComponent(
                     citizenEntity,
                     new Game.Citizens.Leisure
                     {
                         m_TargetAgent =
-                            Entity.Null,
+                            provider.Provider,
 
                         m_LastPossibleFrame =
                             unchecked(
@@ -423,12 +426,46 @@ namespace CityWatchdog.Systems
                                 availableFrames),
                     });
 
+                commandBuffer.AppendToBuffer(
+                    citizenEntity,
+                    new Game.Citizens.TripNeeded
+                    {
+                        m_TargetAgent =
+                            provider.Provider,
+
+                        m_Purpose =
+                            Game.Citizens.Purpose.Leisure,
+
+                        m_Priority = 128,
+                    });
+
                 commandBuffer.RemoveComponent<
                     Game.Citizens.LeisureSeekerCooldown>(
                         citizenEntity);
 
-                injected++;
-                m_LeisureSeekerBudget--;
+                ConsumeTargetProvider(
+                    providerIndex);
+
+                targeted++;
+
+                estimatedService +=
+                    provider
+                        .EstimatedServicePerVisit;
+
+                int resourceIndex =
+                    EconomyUtils.GetResourceIndex(
+                        provider.Resource);
+
+                if (resourceIndex >= 0 &&
+                    resourceIndex <
+                        m_WindowTargetedByResource
+                            .Length)
+                {
+                    m_WindowTargetedByResource[
+                        resourceIndex]++;
+                }
+
+                m_TargetedVisitBudget--;
             }
 
             m_UpdateCount++;
@@ -439,8 +476,11 @@ namespace CityWatchdog.Systems
             m_WindowEligible +=
                 eligible;
 
-            m_WindowInjected +=
-                injected;
+            m_WindowTargeted +=
+                targeted;
+
+            m_WindowEstimatedService +=
+                estimatedService;
 
             if (m_UpdateCount %
                 kLeisureLogEveryUpdates == 0)

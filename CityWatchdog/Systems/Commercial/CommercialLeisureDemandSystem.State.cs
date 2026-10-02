@@ -7,11 +7,12 @@
 // ================= </copyright> ======================
 
 // File: Systems/Commercial/CommercialLeisureDemandSystem.State.cs
-// Purpose: Pressure calculation and diagnostics for corrective leisure demand.
+// Purpose: Individual-provider pressure and diagnostics for targeted leisure demand.
 
 #if DEBUG
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -29,32 +30,48 @@ namespace CityWatchdog.Systems
 {
     public partial class CommercialLeisureDemandSystem
     {
+        private struct ProviderPressure
+        {
+            public Entity Provider;
+            public Entity Building;
+
+            public Resource Resource;
+            public LeisureType LeisureType;
+
+            public int ExcessService;
+            public int WorkingExcessService;
+
+            public int EstimatedServicePerVisit;
+        }
+
         private const float kLeisureTargetServiceRatio =
             0.85f;
 
-        // CitizenBehavior runs four times as often as LeisureSystem.
-        // 64 correction updates therefore roughly span one complete
-        // LeisureSystem pass through its 16 UpdateFrame buckets.
+        // This system now runs at vanilla LeisureSystem's interval.
+        // Spread one measured correction over roughly half a full pass
+        // through LeisureSystem's 16 UpdateFrame buckets.
         private const int kLeisureCorrectionHorizonUpdates =
-            64;
+            8;
 
         private const int kLeisureLogEveryUpdates =
-            128;
-
-        private const int kMaxLeisureSeekersPerUpdate =
             32;
 
-        // A selected resident still uses vanilla SelectLeisureType(), so not
-        // every added leisure attempt will choose one of the pressured
-        // commercial types. Keep the controller modestly ahead of that loss.
-        private const double kVanillaSelectionCompensation =
-            2.0;
+        // The trips are now specifically targeted, so we no longer need
+        // dozens of speculative extra seekers in one update.
+        private const int kMaxTargetedVisitorsPerUpdate =
+            4;
 
-        // Candidates have LeisureCounter < 128, so they need at least about
-        // half of the full 0..255 leisure range. This is used only to estimate
-        // how many extra seekers to release, not to modify their leisure.
         private const int kAssumedLeisurePointsToGain =
             160;
+
+        // Prefer nearby stressed businesses but do not completely exclude
+        // a more distant one. A sufficiently severe Service excess can
+        // therefore still overcome the distance penalty.
+        private const float kDistanceScale =
+            2000f;
+
+        private readonly List<ProviderPressure>
+            m_ProviderPressures = new();
 
         private readonly long[]
             m_LeisureServiceAvailable =
@@ -86,30 +103,25 @@ namespace CityWatchdog.Systems
                 new float[
                     EconomyUtils.ResourceCount];
 
-        private readonly long[]
-            m_LeisureTypeExcess =
-                new long[
-                    (int)LeisureType.Count];
+        private readonly int[]
+            m_WindowTargetedByResource =
+                new int[
+                    EconomyUtils.ResourceCount];
 
         private long m_TotalLeisureExcess;
 
-        private long
-            m_WeightedEstimatedVisitService;
+        private int m_RequiredTargetedVisits;
 
-        private int
-            m_EstimatedServicePerVisit;
+        private double m_TargetedVisitCredit;
 
-        private int
-            m_MissingLeisureProviderData;
+        private int m_TargetedVisitBudget;
 
-        private double
-            m_LeisureSeekerCredit;
-
-        private int
-            m_LeisureSeekerBudget;
+        private int m_MissingProviderData;
 
         private void ResetLeisureState()
         {
+            m_ProviderPressures.Clear();
+
             Array.Clear(
                 m_LeisureServiceAvailable,
                 0,
@@ -141,21 +153,19 @@ namespace CityWatchdog.Systems
                 m_LeisureUnusedRatio.Length);
 
             Array.Clear(
-                m_LeisureTypeExcess,
+                m_WindowTargetedByResource,
                 0,
-                m_LeisureTypeExcess.Length);
+                m_WindowTargetedByResource.Length);
 
             m_TotalLeisureExcess = 0;
 
-            m_WeightedEstimatedVisitService = 0;
+            m_RequiredTargetedVisits = 0;
 
-            m_EstimatedServicePerVisit = 1;
+            m_TargetedVisitCredit = 0d;
 
-            m_MissingLeisureProviderData = 0;
+            m_TargetedVisitBudget = 0;
 
-            m_LeisureSeekerCredit = 0d;
-
-            m_LeisureSeekerBudget = 0;
+            m_MissingProviderData = 0;
         }
 
         private void BuildLeisurePressure(
@@ -169,6 +179,8 @@ namespace CityWatchdog.Systems
                 LeisureProviderData>
                     leisureProviderDatas)
         {
+            m_ProviderPressures.Clear();
+
             Array.Clear(
                 m_LeisureServiceAvailable,
                 0,
@@ -199,16 +211,11 @@ namespace CityWatchdog.Systems
                 0,
                 m_LeisureUnusedRatio.Length);
 
-            Array.Clear(
-                m_LeisureTypeExcess,
-                0,
-                m_LeisureTypeExcess.Length);
-
             m_TotalLeisureExcess = 0;
 
-            m_WeightedEstimatedVisitService = 0;
+            m_RequiredTargetedVisits = 0;
 
-            m_MissingLeisureProviderData = 0;
+            m_MissingProviderData = 0;
 
             BufferLookup<Game.Economy.Resources>
                 resourcesLookup =
@@ -223,6 +230,8 @@ namespace CityWatchdog.Systems
                     notificationsRef,
                 RefRO<PrefabRef>
                     prefabRef,
+                RefRO<Game.Buildings.PropertyRenter>
+                    propertyRenterRef,
                 Entity company) in
                 SystemAPI
                     .Query<
@@ -231,7 +240,9 @@ namespace CityWatchdog.Systems
                         RefRO<
                             Game.Companies.CompanyNotifications>,
                         RefRO<
-                            PrefabRef>>()
+                            PrefabRef>,
+                        RefRO<
+                            Game.Buildings.PropertyRenter>>()
                     .WithAll<
                         Game.Companies.CommercialCompany>()
                     .WithNone<
@@ -320,7 +331,8 @@ namespace CityWatchdog.Systems
                                 company]);
                 }
 
-                // Match the physical-stock side of vanilla's warning rule.
+                // Match the important stock side of vanilla's
+                // No Customers notification.
                 if (stock <= 200)
                 {
                     continue;
@@ -329,7 +341,7 @@ namespace CityWatchdog.Systems
                 if (!leisureProviderDatas.HasComponent(
                         companyPrefab))
                 {
-                    m_MissingLeisureProviderData++;
+                    m_MissingProviderData++;
                     continue;
                 }
 
@@ -349,10 +361,42 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
-                LeisureProviderData
-                    providerData =
-                        leisureProviderDatas[
-                            companyPrefab];
+                LeisureProviderData providerData =
+                    leisureProviderDatas[
+                        companyPrefab];
+
+                int estimatedServicePerVisit =
+                    EstimateServicePerVisit(
+                        serviceData,
+                        providerData);
+
+                m_ProviderPressures.Add(
+                    new ProviderPressure
+                    {
+                        Provider =
+                            company,
+
+                        Building =
+                            propertyRenterRef
+                                .ValueRO
+                                .m_Property,
+
+                        Resource =
+                            resource,
+
+                        LeisureType =
+                            providerData
+                                .m_LeisureType,
+
+                        ExcessService =
+                            excess,
+
+                        WorkingExcessService =
+                            excess,
+
+                        EstimatedServicePerVisit =
+                            estimatedServicePerVisit,
+                    });
 
                 m_LeisureExcess[
                     resourceIndex] +=
@@ -361,27 +405,14 @@ namespace CityWatchdog.Systems
                 m_TotalLeisureExcess +=
                     excess;
 
-                int leisureTypeIndex =
-                    (int)providerData
-                        .m_LeisureType;
-
-                if (leisureTypeIndex >= 0 &&
-                    leisureTypeIndex <
-                        m_LeisureTypeExcess.Length)
-                {
-                    m_LeisureTypeExcess[
-                        leisureTypeIndex] +=
-                            excess;
-                }
-
-                int estimatedVisitService =
-                    EstimateServicePerVisit(
-                        serviceData,
-                        providerData);
-
-                m_WeightedEstimatedVisitService +=
-                    (long)excess *
-                    estimatedVisitService;
+                // Count per provider, not globally. Even a shop only 100
+                // Service above target still needs at least one visit.
+                m_RequiredTargetedVisits +=
+                    Math.Max(
+                        1,
+                        (int)Math.Ceiling(
+                            (double)excess /
+                            estimatedServicePerVisit));
             }
 
             for (int i = 0;
@@ -399,63 +430,281 @@ namespace CityWatchdog.Systems
                             m_LeisureServiceAvailable[i] /
                         m_LeisureMaxService[i]);
             }
-
-            if (m_TotalLeisureExcess > 0)
-            {
-                m_EstimatedServicePerVisit =
-                    math.max(
-                        1,
-                        (int)(
-                            m_WeightedEstimatedVisitService /
-                            m_TotalLeisureExcess));
-            }
-            else
-            {
-                m_EstimatedServicePerVisit = 1;
-            }
         }
 
-        private void PrepareLeisureBudget()
+        private void PrepareTargetedVisitBudget()
         {
-            if (m_TotalLeisureExcess <= 0)
+            if (m_RequiredTargetedVisits <= 0)
             {
-                m_LeisureSeekerBudget = 0;
-                m_LeisureSeekerCredit = 0d;
+                m_TargetedVisitBudget = 0;
+
+                m_TargetedVisitCredit = 0d;
+
                 return;
             }
 
-            double requestedSeekers =
-                (double)m_TotalLeisureExcess /
-                kLeisureCorrectionHorizonUpdates /
-                math.max(
-                    1,
-                    m_EstimatedServicePerVisit);
+            m_TargetedVisitCredit +=
+                (double)m_RequiredTargetedVisits /
+                kLeisureCorrectionHorizonUpdates;
 
-            requestedSeekers *=
-                kVanillaSelectionCompensation;
-
-            m_LeisureSeekerCredit +=
-                requestedSeekers;
-
-            // Do not allow a temporary lack of eligible cims to build an
-            // enormous burst for later.
-            m_LeisureSeekerCredit =
+            // Prevent a temporary shortage of suitable cims from producing
+            // a large burst later.
+            m_TargetedVisitCredit =
                 Math.Min(
-                    m_LeisureSeekerCredit,
-                    kMaxLeisureSeekersPerUpdate *
+                    m_TargetedVisitCredit,
+                    kMaxTargetedVisitorsPerUpdate *
                     2d);
 
-            int wholeSeekers =
+            int wholeVisits =
                 (int)Math.Floor(
-                    m_LeisureSeekerCredit);
+                    m_TargetedVisitCredit);
 
-            m_LeisureSeekerBudget =
+            m_TargetedVisitBudget =
                 Math.Min(
-                    kMaxLeisureSeekersPerUpdate,
-                    wholeSeekers);
+                    kMaxTargetedVisitorsPerUpdate,
+                    wholeVisits);
 
-            m_LeisureSeekerCredit -=
-                m_LeisureSeekerBudget;
+            m_TargetedVisitCredit -=
+                m_TargetedVisitBudget;
+        }
+
+        private bool TrySelectTargetProvider(
+            Entity citizenEntity,
+            uint simulationFrame,
+            Game.Citizens.Citizen citizen,
+            Game.Citizens.Household household,
+            Game.Buildings.PropertyRenter
+                propertyRenter,
+            int householdSize,
+            EconomyParameterData economyParameters,
+            Entity home,
+            ref ComponentLookup<
+                Game.Objects.Transform>
+                    transforms,
+            out int providerIndex)
+        {
+            providerIndex = -1;
+
+            if (householdSize <= 0 ||
+                m_ProviderPressures.Count == 0)
+            {
+                return false;
+            }
+
+            int disposableIncome =
+                EconomyUtils.GetHouseholdDisposableIncome(
+                    household,
+                    propertyRenter);
+
+            int affluenceIncome =
+                EconomyUtils.GetAffluenceReferenceIncome(
+                    economyParameters) *
+                householdSize;
+
+            if (affluenceIncome <= 0)
+            {
+                return false;
+            }
+
+            Game.Citizens.CitizenAge age =
+                citizen.GetAge();
+
+            bool hasHomePosition =
+                transforms.HasComponent(
+                    home);
+
+            float3 homePosition =
+                hasHomePosition
+                    ? transforms[
+                        home].m_Position
+                    : default;
+
+            float totalScore = 0f;
+
+            for (int i = 0;
+                i < m_ProviderPressures.Count;
+                i++)
+            {
+                ProviderPressure provider =
+                    m_ProviderPressures[i];
+
+                if (provider.WorkingExcessService <= 0)
+                {
+                    continue;
+                }
+
+                float vanillaWeight =
+                    GetVanillaLeisureWeight(
+                        provider.LeisureType,
+                        disposableIncome,
+                        affluenceIncome,
+                        age);
+
+                if (vanillaWeight <= 0f)
+                {
+                    continue;
+                }
+
+                float distanceWeight = 1f;
+
+                if (hasHomePosition &&
+                    provider.Building !=
+                        Entity.Null &&
+                    transforms.HasComponent(
+                        provider.Building))
+                {
+                    float distance =
+                        math.distance(
+                            homePosition,
+                            transforms[
+                                provider.Building]
+                                .m_Position);
+
+                    distanceWeight =
+                        1f /
+                        (1f +
+                            distance /
+                            kDistanceScale);
+                }
+
+                float preference =
+                    math.sqrt(
+                        vanillaWeight);
+
+                float score =
+                    provider
+                        .WorkingExcessService *
+                    preference *
+                    distanceWeight;
+
+                totalScore +=
+                    score;
+            }
+
+            if (totalScore <= 0f ||
+                !math.isfinite(
+                    totalScore))
+            {
+                return false;
+            }
+
+            uint seed =
+                unchecked(
+                    ((uint)citizenEntity.Index *
+                        747796405u) ^
+                    ((uint)citizenEntity.Version *
+                        2891336453u) ^
+                    (simulationFrame *
+                        277803737u) ^
+                    0x1E157A9u);
+
+            if (seed == 0)
+            {
+                seed = 1;
+            }
+
+            Unity.Mathematics.Random random =
+                new(seed);
+
+            float selection =
+                random.NextFloat(
+                    0f,
+                    totalScore);
+
+            for (int i = 0;
+                i < m_ProviderPressures.Count;
+                i++)
+            {
+                ProviderPressure provider =
+                    m_ProviderPressures[i];
+
+                if (provider.WorkingExcessService <= 0)
+                {
+                    continue;
+                }
+
+                float vanillaWeight =
+                    GetVanillaLeisureWeight(
+                        provider.LeisureType,
+                        disposableIncome,
+                        affluenceIncome,
+                        age);
+
+                if (vanillaWeight <= 0f)
+                {
+                    continue;
+                }
+
+                float distanceWeight = 1f;
+
+                if (hasHomePosition &&
+                    provider.Building !=
+                        Entity.Null &&
+                    transforms.HasComponent(
+                        provider.Building))
+                {
+                    float distance =
+                        math.distance(
+                            homePosition,
+                            transforms[
+                                provider.Building]
+                                .m_Position);
+
+                    distanceWeight =
+                        1f /
+                        (1f +
+                            distance /
+                            kDistanceScale);
+                }
+
+                float preference =
+                    math.sqrt(
+                        vanillaWeight);
+
+                float score =
+                    provider
+                        .WorkingExcessService *
+                    preference *
+                    distanceWeight;
+
+                if (selection < score)
+                {
+                    providerIndex = i;
+
+                    return true;
+                }
+
+                selection -=
+                    score;
+            }
+
+            return false;
+        }
+
+        private void ConsumeTargetProvider(
+            int providerIndex)
+        {
+            if (providerIndex < 0 ||
+                providerIndex >=
+                    m_ProviderPressures.Count)
+            {
+                return;
+            }
+
+            ProviderPressure provider =
+                m_ProviderPressures[
+                    providerIndex];
+
+            provider.WorkingExcessService =
+                math.max(
+                    0,
+                    provider.WorkingExcessService -
+                    provider
+                        .EstimatedServicePerVisit);
+
+            m_ProviderPressures[
+                providerIndex] =
+                    provider;
         }
 
         private static int EstimateServicePerVisit(
@@ -497,76 +746,12 @@ namespace CityWatchdog.Systems
                     ticks);
         }
 
-        private bool HasCommercialLeisurePreference(
-            Game.Citizens.Citizen citizen,
-            Game.Citizens.Household household,
-            Game.Buildings.PropertyRenter
-                propertyRenter,
-            int householdSize,
-            EconomyParameterData economyParameters,
-            float weather,
-            float temperature)
-        {
-            if (householdSize <= 0)
-            {
-                return false;
-            }
-
-            int disposableIncome =
-                EconomyUtils.GetHouseholdDisposableIncome(
-                    household,
-                    propertyRenter);
-
-            int affluenceIncome =
-                EconomyUtils.GetAffluenceReferenceIncome(
-                    economyParameters) *
-                householdSize;
-
-            if (affluenceIncome <= 0)
-            {
-                return false;
-            }
-
-            Game.Citizens.CitizenAge age =
-                citizen.GetAge();
-
-            for (int i = 0;
-                i < m_LeisureTypeExcess.Length;
-                i++)
-            {
-                if (m_LeisureTypeExcess[i] <= 0)
-                {
-                    continue;
-                }
-
-                float weight =
-                    GetVanillaLeisureWeight(
-                        (LeisureType)i,
-                        disposableIncome,
-                        affluenceIncome,
-                        age,
-                        weather,
-                        temperature);
-
-                if (weight > 0f)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static float GetVanillaLeisureWeight(
             LeisureType type,
             int disposableIncome,
             int affluenceIncome,
-            Game.Citizens.CitizenAge age,
-            float weather,
-            float temperature)
+            Game.Citizens.CitizenAge age)
         {
-            float environmentMultiplier = 1f;
-
             float baseWeight;
             float wealthThreshold;
             float ageWeight;
@@ -639,90 +824,12 @@ namespace CityWatchdog.Systems
 
                     break;
 
-                case LeisureType.CityIndoors:
-                case LeisureType.CityPark:
-                case LeisureType.CityBeach:
-                    baseWeight = 10f;
-                    wealthThreshold = 0f;
-
-                    ageWeight =
-                        age switch
-                        {
-                            Game.Citizens.CitizenAge.Child =>
-                                30f,
-
-                            Game.Citizens.CitizenAge.Teen =>
-                                25f,
-
-                            Game.Citizens.CitizenAge.Elderly =>
-                                15f,
-
-                            _ =>
-                                30f,
-                        };
-
-                    environmentMultiplier =
-                        type switch
-                        {
-                            LeisureType.CityIndoors =>
-                                1f,
-
-                            LeisureType.CityPark =>
-                                2f *
-                                (1f -
-                                    0.95f *
-                                    weather),
-
-                            _ =>
-                                0.05f +
-                                4f *
-                                math.saturate(
-                                    0.35f -
-                                    weather) *
-                                math.saturate(
-                                    (temperature -
-                                        20f) /
-                                    30f),
-                        };
-
-                    break;
-
-                case LeisureType.Travel:
-                    baseWeight = 1f;
-                    wealthThreshold = 0.5f;
-
-                    environmentMultiplier =
-                        0.5f +
-                        math.saturate(
-                            (30f -
-                                temperature) /
-                            50f);
-
-                    ageWeight =
-                        age switch
-                        {
-                            Game.Citizens.CitizenAge.Child =>
-                                15f,
-
-                            Game.Citizens.CitizenAge.Teen =>
-                                15f,
-
-                            Game.Citizens.CitizenAge.Elderly =>
-                                30f,
-
-                            _ =>
-                                40f,
-                        };
-
-                    break;
-
                 default:
                     return 0f;
             }
 
             return
                 ageWeight *
-                environmentMultiplier *
                 baseWeight *
                 math.smoothstep(
                     wealthThreshold,
@@ -763,19 +870,20 @@ namespace CityWatchdog.Systems
 
             LogUtils.Info(
                 "[CWD-LEISURE] " +
+                "mode=targeted " +
                 $"updates={kLeisureLogEveryUpdates} " +
                 $"shops={shops} " +
                 $"warnings={warnings} " +
+                $"stressedProviders={m_ProviderPressures.Count} " +
                 $"excess85={m_TotalLeisureExcess} " +
-                $"estServicePerVisit=" +
-                $"{m_EstimatedServicePerVisit} " +
+                $"requiredVisits={m_RequiredTargetedVisits} " +
                 $"examined={m_WindowExamined} " +
                 $"eligible={m_WindowEligible} " +
-                $"injected={m_WindowInjected} " +
+                $"targeted={m_WindowTargeted} " +
+                $"estimatedService={m_WindowEstimatedService} " +
                 $"credit=" +
-                $"{m_LeisureSeekerCredit.ToString("F2", CultureInfo.InvariantCulture)} " +
-                $"missingProviderData=" +
-                $"{m_MissingLeisureProviderData}");
+                $"{m_TargetedVisitCredit.ToString("F2", CultureInfo.InvariantCulture)} " +
+                $"missingProviderData={m_MissingProviderData}");
 
             StringBuilder details =
                 new(1024);
@@ -826,27 +934,10 @@ namespace CityWatchdog.Systems
                     .Append(
                         m_LeisureExcess[
                             index])
-                    .AppendLine();
-            }
-
-            for (int i = 0;
-                i < m_LeisureTypeExcess.Length;
-                i++)
-            {
-                if (m_LeisureTypeExcess[i] <= 0)
-                {
-                    continue;
-                }
-
-                details
+                    .Append(" targeted=")
                     .Append(
-                        "[CWD-LEISURE-TYPE] ")
-                    .Append("type=")
-                    .Append(
-                        (LeisureType)i)
-                    .Append(" excess85=")
-                    .Append(
-                        m_LeisureTypeExcess[i])
+                        m_WindowTargetedByResource[
+                            index])
                     .AppendLine();
             }
 
@@ -856,9 +947,16 @@ namespace CityWatchdog.Systems
                     details.ToString());
             }
 
+            Array.Clear(
+                m_WindowTargetedByResource,
+                0,
+                m_WindowTargetedByResource.Length);
+
             m_WindowExamined = 0;
             m_WindowEligible = 0;
-            m_WindowInjected = 0;
+            m_WindowTargeted = 0;
+
+            m_WindowEstimatedService = 0;
         }
     }
 }
