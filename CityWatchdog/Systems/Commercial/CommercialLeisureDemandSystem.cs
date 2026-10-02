@@ -433,6 +433,14 @@ namespace CityWatchdog.Systems
                         m_Priority = 128,
                     });
 
+                commandBuffer.AddComponent(
+                    citizenEntity,
+                    new Game.Common.Target
+                    {
+                        m_Target =
+                            provider.Provider,
+                    });
+
                 // A previous failed leisure search may have left vanilla's
                 // 20,000-frame retry cooldown. This new targeted trip is valid,
                 // so clear that stale block if it exists.
