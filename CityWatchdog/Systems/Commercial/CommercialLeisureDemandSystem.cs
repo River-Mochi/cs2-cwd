@@ -482,6 +482,9 @@ namespace CityWatchdog.Systems
                         StartService =
                             startService,
 
+                        StartLeisureCounter =
+                            citizen.m_LeisureCounter,
+
                         Flags =
                             0,
                     });

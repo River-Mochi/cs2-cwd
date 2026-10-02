@@ -134,6 +134,13 @@ namespace CityWatchdog.Systems
                             true);
 
             ComponentLookup<
+                Game.Citizens.Citizen>
+                citizens =
+                    SystemAPI.GetComponentLookup<
+                        Game.Citizens.Citizen>(
+                            true);
+
+            ComponentLookup<
                 Game.Companies.ServiceAvailable>
                 serviceAvailables =
                     SystemAPI.GetComponentLookup<
@@ -294,6 +301,14 @@ namespace CityWatchdog.Systems
                         .m_CurrentBuilding ==
                     probe.Building;
 
+               bool leisureAdvanced =
+                    citizens.HasComponent(
+                        citizenEntity) &&
+                    citizens[
+                        citizenEntity]
+                        .m_LeisureCounter >
+                    probe.StartLeisureCounter;
+
                 if (atProvider &&
                     leisureTargetMatches)
                 {
@@ -308,15 +323,12 @@ namespace CityWatchdog.Systems
 
                         m_WindowArrived++;
                     }
-                    else if (
-                        unchecked(
-                            simulationFrame -
-                            probe.ArrivalFrame) >= 64)
+
+                    // Vanilla SpendLeisureJob increments the cim's LeisureCounter.
+                    // This therefore confirms that the targeted cim actually reached
+                    // the provider and vanilla processed a real leisure visit.
+                    if (leisureAdvanced)
                     {
-                        // The cim has remained at the exact provider through
-                        // at least one LeisureSystem interval. This is our
-                        // strongest practical confirmation that SpendLeisure
-                        // had an opportunity to process the targeted visit.
                         m_WindowSpendConfirmed++;
 
                         if (serviceAvailables.HasComponent(
@@ -343,6 +355,7 @@ namespace CityWatchdog.Systems
                         continue;
                     }
                 }
+
 
                 if (pathFailed)
                 {

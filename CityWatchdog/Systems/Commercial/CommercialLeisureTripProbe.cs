@@ -28,8 +28,11 @@ namespace CityWatchdog.Systems
         public uint ArrivalFrame;
 
         public int StartService;
-
+        public byte StartLeisureCounter;
         public byte Flags;
+
+
+
     }
 }
 
