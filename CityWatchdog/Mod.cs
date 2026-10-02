@@ -182,6 +182,16 @@ namespace CityWatchdog
                     SystemUpdatePhase.GameSimulation);
 
             updateSystem.UpdateAfter<
+                CommercialLeisureTripDiagnosticSystem,
+                CommercialLeisureDemandSystem>(
+                    SystemUpdatePhase.GameSimulation);
+
+            updateSystem.UpdateAfter<
+                CommercialHotelDiagnosticSystem,
+                LodgingProviderSystem>(
+                    SystemUpdatePhase.GameSimulation);
+
+            updateSystem.UpdateAfter<
                 NoCustomersDebugSystem,
                 ServiceCompanySystem>(
                     SystemUpdatePhase.GameSimulation);

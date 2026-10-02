@@ -114,6 +114,13 @@ namespace CityWatchdog.Systems
                             true);
 
             ComponentLookup<
+                Game.Companies.ServiceAvailable>
+                serviceAvailables =
+                    SystemAPI.GetComponentLookup<
+                        Game.Companies.ServiceAvailable>(
+                            true);
+
+            ComponentLookup<
                 IndustrialProcessData>
                 industrialProcessDatas =
                     SystemAPI.GetComponentLookup<
@@ -270,7 +277,8 @@ namespace CityWatchdog.Systems
                         Game.Common.Target>()
                     .WithNone<
                         Game.Common.Deleted,
-                        Game.Tools.Temp>()
+                        Game.Tools.Temp,
+                        CommercialLeisureTripProbe>()
                     .WithSharedComponentFilter(
                         new UpdateFrame(updateFrame))
                     .WithEntityAccess())
@@ -440,6 +448,44 @@ namespace CityWatchdog.Systems
                         m_Target =
                             provider.Provider,
                     });
+
+                int startService = 0;
+
+                if (serviceAvailables.HasComponent(
+                        provider.Provider))
+                {
+                    startService =
+                        serviceAvailables[
+                            provider.Provider]
+                            .m_ServiceAvailable;
+                }
+
+                commandBuffer.AddComponent(
+                    citizenEntity,
+                    new CommercialLeisureTripProbe
+                    {
+                        Provider =
+                            provider.Provider,
+
+                        Building =
+                            provider.Building,
+
+                        Resource =
+                            provider.Resource,
+
+                        StartFrame =
+                            simulationFrame,
+
+                        ArrivalFrame =
+                            0,
+
+                        StartService =
+                            startService,
+
+                        Flags =
+                            0,
+                    });
+
 
                 // A previous failed leisure search may have left vanilla's
                 // 20,000-frame retry cooldown. This new targeted trip is valid,
