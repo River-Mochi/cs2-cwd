@@ -66,6 +66,34 @@ namespace CityWatchdog.Systems
                         Game.Citizens.LodgingSeeker>(
                             true);
 
+            ComponentLookup<
+                Game.Common.Target>
+                targets =
+                    SystemAPI.GetComponentLookup<
+                        Game.Common.Target>(
+                            true);
+
+            ComponentLookup<
+                Game.Pathfind.PathInformation>
+                pathInformations =
+                    SystemAPI.GetComponentLookup<
+                        Game.Pathfind.PathInformation>(
+                            true);
+
+            ComponentLookup<
+                Game.Agents.MovingAway>
+                movingAways =
+                    SystemAPI.GetComponentLookup<
+                        Game.Agents.MovingAway>(
+                            true);
+
+            ComponentLookup<
+                Game.Buildings.Building>
+                buildings =
+                    SystemAPI.GetComponentLookup<
+                        Game.Buildings.Building>(
+                            true);
+
             int hotelCount = 0;
             int warningCount = 0;
 
@@ -148,8 +176,15 @@ namespace CityWatchdog.Systems
 
             int touristHouseholds = 0;
             int hotelAssigned = 0;
-            int seekingLodging = 0;
-            int unassigned = 0;
+            int noHotel = 0;
+
+            int noHotelTarget = 0;
+            int noHotelValidTarget = 0;
+            int noHotelPath = 0;
+            int noHotelLodgingSeeker = 0;
+            int noHotelMovingAway = 0;
+            int noHotelBalanceEligible = 0;
+            int noHotelIdle = 0;
 
             foreach ((
                 RefRO<Game.Citizens.TouristHousehold>
@@ -170,16 +205,77 @@ namespace CityWatchdog.Systems
                     Entity.Null)
                 {
                     hotelAssigned++;
-                }
-                else
-                {
-                    unassigned++;
+                    continue;
                 }
 
-                if (lodgingSeekers.HasComponent(
-                        householdEntity))
+                noHotel++;
+
+                bool hasTarget =
+                    targets.HasComponent(
+                        householdEntity);
+
+                bool hasValidTarget =
+                    hasTarget &&
+                    targets[
+                        householdEntity]
+                        .m_Target !=
+                    Entity.Null &&
+                    buildings.HasComponent(
+                        targets[
+                            householdEntity]
+                            .m_Target);
+
+                bool hasPath =
+                    pathInformations.HasComponent(
+                        householdEntity);
+
+                bool isLodgingSeeker =
+                    lodgingSeekers.HasComponent(
+                        householdEntity);
+
+                bool isMovingAway =
+                    movingAways.HasComponent(
+                        householdEntity);
+
+                if (hasTarget)
                 {
-                    seekingLodging++;
+                    noHotelTarget++;
+                }
+
+                if (hasValidTarget)
+                {
+                    noHotelValidTarget++;
+                }
+
+                if (hasPath)
+                {
+                    noHotelPath++;
+                }
+
+                if (isLodgingSeeker)
+                {
+                    noHotelLodgingSeeker++;
+                }
+
+                if (isMovingAway)
+                {
+                    noHotelMovingAway++;
+                }
+
+                if (isLodgingSeeker &&
+                    !hasTarget &&
+                    !hasPath &&
+                    !isMovingAway)
+                {
+                    noHotelBalanceEligible++;
+                }
+
+                if (!hasTarget &&
+                    !hasPath &&
+                    !isLodgingSeeker &&
+                    !isMovingAway)
+                {
+                    noHotelIdle++;
                 }
             }
 
@@ -213,8 +309,14 @@ namespace CityWatchdog.Systems
                 $"{unusedService.ToString("F1", CultureInfo.InvariantCulture)}% " +
                 $"touristHouseholds={touristHouseholds} " +
                 $"hotelAssigned={hotelAssigned} " +
-                $"lodgingSeekers={seekingLodging} " +
-                $"unassigned={unassigned}");
+                $"noHotel={noHotel} " +
+                $"noHotelTarget={noHotelTarget} " +
+                $"noHotelValidTarget={noHotelValidTarget} " +
+                $"noHotelPath={noHotelPath} " +
+                $"noHotelLodgingSeeker={noHotelLodgingSeeker} " +
+                $"noHotelMovingAway={noHotelMovingAway} " +
+                $"noHotelBalanceEligible={noHotelBalanceEligible} " +
+                $"noHotelIdle={noHotelIdle}");
         }
     }
 }
