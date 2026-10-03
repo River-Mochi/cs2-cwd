@@ -59,7 +59,13 @@ namespace CityWatchdog.Systems
         // The trips are now specifically targeted, so we no longer need
         // dozens of speculative extra seekers in one update.
         private const int kMaxTargetedVisitorsPerUpdate =
-            4;
+            1;
+
+        private const int kMaxInFlightTargetedVisitors =
+            8;
+
+        private const float kMaxCorrectiveDistance =
+            1500f;
 
         private const int kAssumedLeisurePointsToGain =
             160;

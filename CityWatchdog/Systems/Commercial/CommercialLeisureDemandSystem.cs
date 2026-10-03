@@ -49,6 +49,8 @@ namespace CityWatchdog.Systems
 
         private bool m_ConfigurationLogged;
 
+        private EntityQuery m_LeisureProbeQuery;
+
         public override int GetUpdateInterval(
             SystemUpdatePhase phase)
         {
@@ -72,6 +74,15 @@ namespace CityWatchdog.Systems
             m_EndFrameBarrier =
                 World.GetOrCreateSystemManaged<
                     EndFrameBarrier>();
+
+            m_LeisureProbeQuery =
+                GetEntityQuery(
+                    ComponentType.ReadOnly<
+                        CommercialLeisureTripProbe>(),
+                    ComponentType.Exclude<
+                        Game.Common.Deleted>(),
+                    ComponentType.Exclude<
+                        Game.Tools.Temp>());
         }
 
         protected override void OnGameLoaded(
@@ -140,6 +151,21 @@ namespace CityWatchdog.Systems
                 leisureProviderDatas);
 
             PrepareTargetedVisitBudget();
+
+            int activeCorrectiveTrips =
+                m_LeisureProbeQuery
+                    .CalculateEntityCount();
+
+            int availableCorrectiveSlots =
+                math.max(
+                    0,
+                    kMaxInFlightTargetedVisitors -
+                        activeCorrectiveTrips);
+
+            m_TargetedVisitBudget =
+                math.min(
+                    m_TargetedVisitBudget,
+                    availableCorrectiveSlots);
 
             if (!m_ConfigurationLogged)
             {
@@ -433,7 +459,7 @@ namespace CityWatchdog.Systems
                     new Game.Citizens.TripNeeded
                     {
                         m_TargetAgent =
-                            provider.Provider,
+                            provider.Building,
 
                         m_Purpose =
                             Game.Citizens.Purpose.Leisure,
@@ -446,7 +472,7 @@ namespace CityWatchdog.Systems
                     new Game.Common.Target
                     {
                         m_Target =
-                            provider.Provider,
+                            provider.Building,
                     });
 
                 int startService = 0;

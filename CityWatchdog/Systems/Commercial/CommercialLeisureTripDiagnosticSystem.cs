@@ -188,10 +188,10 @@ namespace CityWatchdog.Systems
                 }
 
                 bool tripSeen =
-                    HasLeisureTrip(
-                        citizenEntity,
-                        probe.Provider,
-                        ref tripBuffers);
+            HasLeisureTrip(
+                citizenEntity,
+                probe.Building,
+                ref tripBuffers);
 
                 if (tripSeen &&
                     (probe.Flags &
@@ -209,7 +209,7 @@ namespace CityWatchdog.Systems
                     targets[
                         citizenEntity]
                         .m_Target ==
-                    probe.Provider;
+                    probe.Building;
 
                 if (targetSeen &&
                     (probe.Flags &
