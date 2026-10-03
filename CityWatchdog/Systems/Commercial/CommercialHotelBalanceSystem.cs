@@ -31,31 +31,38 @@ namespace CityWatchdog.Systems
         private struct HotelPressure
         {
             public Entity Hotel;
+            public Entity Building;
 
             public int ExcessService;
             public int FreeRooms;
+        }
 
-            public bool AssignedThisPass;
+        private struct HotelAssignment
+        {
+            public Entity Household;
+            public Entity Building;
         }
 
         private const float kTargetServiceRatio =
             0.85f;
 
-        // One new real tourist household per stressed hotel per full
-        // LodgingProvider pass. No extra path request is created.
-        private const int kMaxAssignmentsPerPass =
-            4;
+        // Intercept at most one real vanilla lodging seeker per update.
+        // This keeps the correction gradual while still running often enough
+        // to catch seekers before TouristFindTargetSystem consumes them.
+        private const int kMaxAssignmentsPerUpdate =
+            1;
 
         private readonly List<HotelPressure>
             m_Hotels = new();
 
+        private readonly List<HotelAssignment>
+            m_Assignments = new();
+
         public override int GetUpdateInterval(
             SystemUpdatePhase phase)
         {
-            // Each LodgingProvider is processed 32 times per game day.
-            // Run once per complete provider pass rather than every frame.
-            return 262144 /
-                LodgingProviderSystem.kUpdatesPerDay;
+            // Match vanilla TouristFindTargetSystem.
+            return 16;
         }
 
         protected override void OnUpdate()
@@ -74,6 +81,13 @@ namespace CityWatchdog.Systems
                         IndustrialProcessData>(
                             true);
 
+            ComponentLookup<
+                Game.Buildings.Building>
+                buildings =
+                    SystemAPI.GetComponentLookup<
+                        Game.Buildings.Building>(
+                            true);
+
             BufferLookup<
                 Game.Economy.Resources>
                 resources =
@@ -82,6 +96,7 @@ namespace CityWatchdog.Systems
                             true);
 
             m_Hotels.Clear();
+            m_Assignments.Clear();
 
             int hotelCount = 0;
             int stressedHotels = 0;
@@ -93,6 +108,8 @@ namespace CityWatchdog.Systems
                     serviceRef,
                 RefRO<PrefabRef>
                     prefabRef,
+                RefRO<Game.Buildings.PropertyRenter>
+                    propertyRenterRef,
                 Entity hotelEntity) in
                 SystemAPI
                     .Query<
@@ -101,10 +118,11 @@ namespace CityWatchdog.Systems
                         RefRO<
                             Game.Companies.ServiceAvailable>,
                         RefRO<
-                            PrefabRef>>()
+                            PrefabRef>,
+                        RefRO<
+                            Game.Buildings.PropertyRenter>>()
                     .WithAll<
                         Game.Companies.CommercialCompany>()
-
                     .WithNone<
                         Game.Common.Deleted,
                         Game.Tools.Temp>()
@@ -133,6 +151,17 @@ namespace CityWatchdog.Systems
                 }
 
                 hotelCount++;
+
+                Entity building =
+                    propertyRenterRef.ValueRO
+                        .m_Property;
+
+                if (building == Entity.Null ||
+                    !buildings.HasComponent(
+                        building))
+                {
+                    continue;
+                }
 
                 Game.Companies.ServiceCompanyData
                     serviceData =
@@ -189,15 +218,15 @@ namespace CityWatchdog.Systems
                         Hotel =
                             hotelEntity,
 
+                        Building =
+                            building,
+
                         ExcessService =
                             excessService,
 
                         FreeRooms =
                             lodgingRef.ValueRO
                                 .m_FreeRooms,
-
-                        AssignedThisPass =
-                            false,
                     });
             }
 
@@ -218,7 +247,7 @@ namespace CityWatchdog.Systems
                     SystemAPI.GetComponentLookup<
                         Game.Companies.LodgingProvider>();
 
-            int idleUnassigned = 0;
+            int seekersSeen = 0;
             int assignments = 0;
 
             foreach ((
@@ -236,11 +265,14 @@ namespace CityWatchdog.Systems
                         Game.Agents.MovingAway,
                         Game.Common.Deleted>()
                     .WithNone<
-                        Game.Tools.Temp>()
+                        Game.Tools.Temp,
+                        Game.Pathfind.PathInformation>()
                     .WithEntityAccess())
             {
+                seekersSeen++;
+
                 if (assignments >=
-                    kMaxAssignmentsPerPass)
+                    kMaxAssignmentsPerUpdate)
                 {
                     break;
                 }
@@ -254,8 +286,6 @@ namespace CityWatchdog.Systems
                 {
                     continue;
                 }
-
-                idleUnassigned++;
 
                 int hotelIndex =
                     SelectHotel();
@@ -274,13 +304,6 @@ namespace CityWatchdog.Systems
                     !lodgingProviders.HasComponent(
                         pressure.Hotel))
                 {
-                    pressure.AssignedThisPass =
-                        true;
-
-                    m_Hotels[
-                        hotelIndex] =
-                            pressure;
-
                     continue;
                 }
 
@@ -291,17 +314,11 @@ namespace CityWatchdog.Systems
 
                 if (lodging.m_FreeRooms <= 0)
                 {
-                    pressure.AssignedThisPass =
-                        true;
-
-                    m_Hotels[
-                        hotelIndex] =
-                            pressure;
-
                     continue;
                 }
 
-                // Mirror vanilla HotelReserveJob's real reservation state.
+                // Mirror vanilla HotelReserveJob:
+                // reserve one real room for this real tourist household.
                 renters[
                     pressure.Hotel]
                     .Add(
@@ -323,33 +340,62 @@ namespace CityWatchdog.Systems
                 touristRef.ValueRW =
                     tourist;
 
-                // Important:
-                // Do NOT create a Target.
-                // Do NOT create a PathInformation.
-                // Do NOT remove LodgingSeeker.
-                //
-                // Vanilla tourism remains free to choose the household's
-                // next attraction/activity. We only reserve its hotel room.
+                m_Assignments.Add(
+                    new HotelAssignment
+                    {
+                        Household =
+                            householdEntity,
 
-                pressure.FreeRooms =
-                    lodging.m_FreeRooms;
-
-                pressure.AssignedThisPass =
-                    true;
-
-                m_Hotels[
-                    hotelIndex] =
-                        pressure;
+                        Building =
+                            pressure.Building,
+                    });
 
                 assignments++;
             }
 
-            LogUtils.Info(
-                "[CWD-HOTEL-BALANCE] " +
-                $"hotels={hotelCount} " +
-                $"stressed={stressedHotels} " +
-                $"idleUnassigned={idleUnassigned} " +
-                $"assigned={assignments}");
+            // Do the structural changes after the SystemAPI.Query iteration.
+            // Vanilla successful reservation removes LodgingSeeker and leaves
+            // the household targeted at the selected physical hotel building.
+            for (int i = 0;
+                i < m_Assignments.Count;
+                i++)
+            {
+                HotelAssignment assignment =
+                    m_Assignments[i];
+
+                if (EntityManager.HasComponent<
+                        Game.Citizens.LodgingSeeker>(
+                        assignment.Household))
+                {
+                    EntityManager.RemoveComponent<
+                        Game.Citizens.LodgingSeeker>(
+                            assignment.Household);
+                }
+
+                if (!EntityManager.HasComponent<
+                        Game.Common.Target>(
+                        assignment.Household))
+                {
+                    EntityManager.AddComponentData(
+                        assignment.Household,
+                        new Game.Common.Target
+                        {
+                            m_Target =
+                                assignment.Building,
+                        });
+                }
+            }
+
+            if (assignments > 0 ||
+                seekersSeen > 0)
+            {
+                LogUtils.Info(
+                    "[CWD-HOTEL-BALANCE] " +
+                    $"hotels={hotelCount} " +
+                    $"stressed={stressedHotels} " +
+                    $"seekersSeen={seekersSeen} " +
+                    $"assigned={assignments}");
+            }
         }
 
         private int SelectHotel()
@@ -364,8 +410,7 @@ namespace CityWatchdog.Systems
                 HotelPressure hotel =
                     m_Hotels[i];
 
-                if (hotel.AssignedThisPass ||
-                    hotel.FreeRooms <= 0 ||
+                if (hotel.FreeRooms <= 0 ||
                     hotel.ExcessService <=
                         bestExcess)
                 {

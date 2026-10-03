@@ -186,14 +186,14 @@ namespace CityWatchdog
                 CommercialLeisureDemandSystem>(
                     SystemUpdatePhase.GameSimulation);
 
-            updateSystem.UpdateAfter<
+           updateSystem.UpdateBefore<
                 CommercialHotelBalanceSystem,
-                LodgingProviderSystem>(
+                TouristFindTargetSystem>(
                     SystemUpdatePhase.GameSimulation);
 
             updateSystem.UpdateAfter<
                 CommercialHotelDiagnosticSystem,
-                CommercialHotelBalanceSystem>(
+                LodgingProviderSystem>(
                     SystemUpdatePhase.GameSimulation);
 
             updateSystem.UpdateAfter<
