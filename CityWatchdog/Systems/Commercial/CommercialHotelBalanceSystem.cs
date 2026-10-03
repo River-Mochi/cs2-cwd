@@ -234,9 +234,9 @@ namespace CityWatchdog.Systems
                     .WithNone<
                         Game.Common.Target,
                         Game.Agents.MovingAway,
-                        Game.Common.Deleted,
+                        Game.Common.Deleted>()
+                    .WithNone<
                         Game.Tools.Temp>()
-
                     .WithEntityAccess())
             {
                 if (assignments >=
