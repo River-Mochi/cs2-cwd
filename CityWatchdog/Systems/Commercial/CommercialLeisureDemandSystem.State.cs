@@ -492,7 +492,10 @@ namespace CityWatchdog.Systems
             providerIndex = -1;
 
             if (householdSize <= 0 ||
-                m_ProviderPressures.Count == 0)
+                m_ProviderPressures.Count == 0 ||
+                home == Entity.Null ||
+                !transforms.HasComponent(
+                    home))
             {
                 return false;
             }
@@ -515,15 +518,9 @@ namespace CityWatchdog.Systems
             Game.Citizens.CitizenAge age =
                 citizen.GetAge();
 
-            bool hasHomePosition =
-                transforms.HasComponent(
-                    home);
-
             float3 homePosition =
-                hasHomePosition
-                    ? transforms[
-                        home].m_Position
-                    : default;
+                transforms[
+                    home].m_Position;
 
             float totalScore = 0f;
 
@@ -539,6 +536,15 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
+                if (!TryGetDistanceWeight(
+                        homePosition,
+                        provider.Building,
+                        ref transforms,
+                        out float distanceWeight))
+                {
+                    continue;
+                }
+
                 float vanillaWeight =
                     GetVanillaLeisureWeight(
                         provider.LeisureType,
@@ -549,28 +555,6 @@ namespace CityWatchdog.Systems
                 if (vanillaWeight <= 0f)
                 {
                     continue;
-                }
-
-                float distanceWeight = 1f;
-
-                if (hasHomePosition &&
-                    provider.Building !=
-                        Entity.Null &&
-                    transforms.HasComponent(
-                        provider.Building))
-                {
-                    float distance =
-                        math.distance(
-                            homePosition,
-                            transforms[
-                                provider.Building]
-                                .m_Position);
-
-                    distanceWeight =
-                        1f /
-                        (1f +
-                            distance /
-                            kDistanceScale);
                 }
 
                 float preference =
@@ -629,6 +613,15 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
+                if (!TryGetDistanceWeight(
+                        homePosition,
+                        provider.Building,
+                        ref transforms,
+                        out float distanceWeight))
+                {
+                    continue;
+                }
+
                 float vanillaWeight =
                     GetVanillaLeisureWeight(
                         provider.LeisureType,
@@ -639,28 +632,6 @@ namespace CityWatchdog.Systems
                 if (vanillaWeight <= 0f)
                 {
                     continue;
-                }
-
-                float distanceWeight = 1f;
-
-                if (hasHomePosition &&
-                    provider.Building !=
-                        Entity.Null &&
-                    transforms.HasComponent(
-                        provider.Building))
-                {
-                    float distance =
-                        math.distance(
-                            homePosition,
-                            transforms[
-                                provider.Building]
-                                .m_Position);
-
-                    distanceWeight =
-                        1f /
-                        (1f +
-                            distance /
-                            kDistanceScale);
                 }
 
                 float preference =
@@ -686,6 +657,47 @@ namespace CityWatchdog.Systems
 
             return false;
         }
+
+        private static bool TryGetDistanceWeight(
+            float3 homePosition,
+            Entity building,
+            ref ComponentLookup<
+                Game.Objects.Transform>
+                    transforms,
+            out float distanceWeight)
+        {
+            distanceWeight = 0f;
+
+            if (building == Entity.Null ||
+                !transforms.HasComponent(
+                    building))
+            {
+                return false;
+            }
+
+            float distance =
+                math.distance(
+                    homePosition,
+                    transforms[
+                        building]
+                        .m_Position);
+
+            if (distance >
+                kMaxCorrectiveDistance)
+            {
+                return false;
+            }
+
+            distanceWeight =
+                1f /
+                (1f +
+                    distance /
+                    kDistanceScale);
+
+            return true;
+        }
+
+
 
         private void ConsumeTargetProvider(
             int providerIndex)
