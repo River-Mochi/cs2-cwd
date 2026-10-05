@@ -175,16 +175,7 @@ namespace CityWatchdog
                 CommercialVehicleDemandSystem,
                 CommercialDemandBalanceSystem>(
                     SystemUpdatePhase.GameSimulation);
-
-            updateSystem.UpdateAfter<
-                CommercialLeisureDemandSystem,
-                LeisureSystem>(
-                    SystemUpdatePhase.GameSimulation);
-
-            updateSystem.UpdateAfter<
-                CommercialLeisureTripDiagnosticSystem,
-                CommercialLeisureDemandSystem>(
-                    SystemUpdatePhase.GameSimulation);
+  
 
            updateSystem.UpdateBefore<
                 CommercialHotelBalanceSystem,
@@ -199,6 +190,11 @@ namespace CityWatchdog
             updateSystem.UpdateAfter<
                 NoCustomersDebugSystem,
                 ServiceCompanySystem>(
+                    SystemUpdatePhase.GameSimulation);
+
+            updateSystem.UpdateAfter<
+                CommercialProblemSpotDebugSystem,
+                NoCustomersDebugSystem>(
                     SystemUpdatePhase.GameSimulation);
 #endif
 
