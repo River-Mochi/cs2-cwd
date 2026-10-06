@@ -167,7 +167,6 @@ namespace CityWatchdog
 
                 updateSystem.UpdateBefore<CommercialHotelBalanceSystem, TouristFindTargetSystem>(SystemUpdatePhase.GameSimulation);
 
-                updateSystem.UpdateAfter<NoCustomersDebugSystem, ServiceCompanySystem>(SystemUpdatePhase.GameSimulation);
 #endif
             }
             catch (Exception ex)

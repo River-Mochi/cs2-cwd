@@ -34,7 +34,7 @@ namespace CityWatchdog.Systems
         // demand into a single update.
         private const int kCorrectionHorizonUpdates = 16;
 
-        private const int kLogEveryUpdates = 32;
+        private const int kLogEveryUpdates = 256;
 
         private readonly long[] m_ServiceAvailable =
             new long[EconomyUtils.ResourceCount];

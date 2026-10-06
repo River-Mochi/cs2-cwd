@@ -34,7 +34,7 @@ namespace CityWatchdog.Systems
         // 16 household update buckets.
         private const int kVehicleCorrectionHorizonUpdates = 16;
 
-        private const int kVehicleLogEveryUpdates = 32;
+        private const int kVehicleLogEveryUpdates = 256;
 
         private long m_VehicleServiceAvailable;
         private long m_VehicleMaxService;
