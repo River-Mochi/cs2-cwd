@@ -47,7 +47,7 @@ namespace CityWatchdog.Systems
         }
 
         private const float kTargetServiceRatio = 0.85f;
-        private const float kTargetOccupiedRatio = 0.12f;
+        private const float kTargetOccupiedRatio = 0.11f;
         private const int kMaxAssignmentsPerUpdate = 4;
 
         private readonly List<HotelPressure> m_Hotels = new();
@@ -295,7 +295,7 @@ namespace CityWatchdog.Systems
         private int SelectHotel()
         {
             int selected = -1;
-            int bestRoomDeficit = 0;
+            int bestRoomDeficit = int.MaxValue;
             int bestExcessService = 0;
 
             for (int i = 0; i < m_Hotels.Count; i++)
@@ -308,7 +308,7 @@ namespace CityWatchdog.Systems
                     continue;
                 }
 
-                if (hotel.RoomDeficit > bestRoomDeficit ||
+                if (hotel.RoomDeficit < bestRoomDeficit ||
                     (hotel.RoomDeficit == bestRoomDeficit &&
                      hotel.ExcessService > bestExcessService))
                 {

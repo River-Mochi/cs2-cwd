@@ -48,7 +48,7 @@ namespace CityWatchdog.Systems
 
         private const int kWarningScanInterval = 256;
 
-        private const int kReductionPerWarning = 12;
+        private const int kReductionPerExcessWarning = 32;
 
         private SimulationSystem m_SimulationSystem = null!;
 
@@ -165,12 +165,15 @@ namespace CityWatchdog.Systems
                     1,
                     originalFactor / 2);
 
+           int excessWarnings =
+                m_CachedWarningCount - kWarningGoal;
+
             int adjustedFactor =
                 math.max(
                     minimumFactor,
                     originalFactor -
-                        (m_CachedWarningCount *
-                            kReductionPerWarning));
+                        (excessWarnings *
+                            kReductionPerExcessWarning));
 
             if (adjustedFactor >=
                 originalFactor)
