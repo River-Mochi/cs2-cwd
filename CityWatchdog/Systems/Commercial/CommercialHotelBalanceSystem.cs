@@ -48,15 +48,14 @@ namespace CityWatchdog.Systems
 
         private const float kTargetServiceRatio = 0.85f;
         private const float kTargetOccupiedRatio = 0.11f;
-        private const int kMaxAssignmentsPerUpdate = 4;
+        private const int kMaxAssignmentsPerUpdate = 16;
 
         private readonly List<HotelPressure> m_Hotels = new();
         private readonly List<HotelAssignment> m_Assignments = new();
 
         public override int GetUpdateInterval(SystemUpdatePhase phase)
         {
-            // Match vanilla TouristFindTargetSystem.
-            return 16;
+            return 64;
         }
 
         protected override void OnUpdate()
