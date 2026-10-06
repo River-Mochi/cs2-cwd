@@ -25,7 +25,7 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    public partial class CommercialVehicleDemandSystem
+    public partial class VehicleBalanceSystem
     {
         // Same target that worked well for ordinary physical retail.
         private const float kVehicleTargetServiceRatio = 0.85f;

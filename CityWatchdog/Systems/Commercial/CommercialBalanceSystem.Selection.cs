@@ -22,7 +22,7 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    public partial class CommercialDemandBalanceSystem
+    public partial class CommercialBalanceSystem
     {
         private bool TryCreateCorrectiveNeed(
             Entity householdEntity,

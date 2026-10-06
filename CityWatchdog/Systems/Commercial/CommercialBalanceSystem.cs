@@ -34,7 +34,7 @@ namespace CityWatchdog.Systems
     /// It only adds a corrective physical retail need to households that were
     /// ready to shop before vanilla ran but still have no need afterward.
     /// </summary>
-    public partial class CommercialDemandBalanceSystem : GameSystemBase
+    public partial class CommercialBalanceSystem : GameSystemBase
     {
         private SimulationSystem m_SimulationSystem = null!;
         private ResourceSystem m_ResourceSystem = null!;

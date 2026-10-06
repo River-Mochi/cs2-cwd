@@ -21,7 +21,7 @@ using Game.Economy;
 
 namespace CityWatchdog.Systems
 {
-    public partial class CommercialDemandBalanceSystem
+    public partial class CommercialBalanceSystem
     {
         private void LogBalanceWindow()
         {

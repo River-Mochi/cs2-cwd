@@ -21,7 +21,7 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    public partial class CommercialDemandBalanceSystem
+    public partial class CommercialBalanceSystem
     {
         // Keep shops comfortably below the vanilla ~90% warning threshold.
         //
