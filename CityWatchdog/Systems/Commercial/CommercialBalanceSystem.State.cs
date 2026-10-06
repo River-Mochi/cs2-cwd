@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialDemandBalanceSystem.State.cs
+// File: Systems/Commercial/CommercialBalanceSystem.State.cs
 // Purpose: Commercial pressure calculation for demand-balance prototype.
 
 #if DEBUG

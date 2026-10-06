@@ -1,4 +1,4 @@
-// <copyright file="CommercialDemandBalanceSystem.cs" company="River-Mochi">
+// <copyright file="CommercialBalanceSystem.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialDemandBalanceSystem.cs
+// File: Systems/Commercial/CommercialBalanceSystem.cs
 // Purpose: DEBUG-only prototype that adds controlled physical retail demand
 // when commercial shops have excessive unused service.
 

@@ -1,4 +1,4 @@
-// <copyright file="CommercialLeisureDemandSystem.cs" company="River-Mochi">
+// <copyright file="LeisureBlanceSystem.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialLeisureDemandSystem.cs
+// File: Systems/Commercial/LeisureBalanceSystem.cs
 // Purpose: DEBUG-only vanilla leisure-demand correction.
 
 #if DEBUG
@@ -41,7 +41,7 @@ namespace CityWatchdog.Systems
     /// vanilla LeisureSystem/pathfinding handles destination selection,
     /// travel, spending, and Service consumption.
     /// </summary>
-    public partial class CommercialLeisureDemandSystem :
+    public partial class LeisureBalanceSystem :
         GameSystemBase
     {
         private const int kWarningGoal = 5;

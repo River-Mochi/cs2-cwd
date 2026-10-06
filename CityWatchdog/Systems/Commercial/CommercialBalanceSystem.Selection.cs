@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialDemandBalanceSystem.Selection.cs
+// File: Systems/Commercial/CommercialBalanceSystem.Selection.cs
 // Purpose: Select and create corrective physical retail shopping needs.
 
 #if DEBUG

@@ -162,7 +162,7 @@ namespace CityWatchdog
                 updateSystem.UpdateAfter<CommercialBalanceSystem, HouseholdBehaviorSystem>(SystemUpdatePhase.GameSimulation);
                 updateSystem.UpdateAfter<VehicleBalanceSystem, CommercialBalanceSystem>(SystemUpdatePhase.GameSimulation);
 
-                updateSystem.UpdateBefore<CommercialLeisureDemandSystem, CitizenBehaviorSystem>(SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateBefore<LeisureBalanceSystem, CitizenBehaviorSystem>(SystemUpdatePhase.GameSimulation);
                 updateSystem.UpdateAfter<LeisureRestoreSystem, CitizenBehaviorSystem>(SystemUpdatePhase.GameSimulation);
 
                 updateSystem.UpdateBefore<HotelBalanceSystem, TouristFindTargetSystem>(SystemUpdatePhase.GameSimulation);

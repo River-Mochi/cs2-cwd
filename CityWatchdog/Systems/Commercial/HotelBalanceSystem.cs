@@ -29,7 +29,7 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    public partial class CommercialHotelBalanceSystem : GameSystemBase
+    public partial class HotelBalanceSystem : GameSystemBase
     {
         private struct HotelPressure
         {

@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialDemandBalanceSystem.Prepare.cs
+// File: Systems/Commercial/CommercialBalanceSystem.Prepare.cs
 // Purpose: DEBUG-only snapshot immediately before vanilla household shopping.
 
 #if DEBUG

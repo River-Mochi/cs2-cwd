@@ -34,7 +34,7 @@ namespace CityWatchdog.Systems
     /// car-purchase amount of 50, so this system does not manufacture extra
     /// personal cars.
     /// </summary>
-    public partial class CommercialVehicleDemandSystem : GameSystemBase
+    public partial class VehicleBalanceSystem : GameSystemBase
     {
         private SimulationSystem m_SimulationSystem = null!;
         private ResourceSystem m_ResourceSystem = null!;

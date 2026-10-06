@@ -1,4 +1,4 @@
-// <copyright file="CommercialDemandBalanceSystem.Logging.cs" company="River-Mochi">
+// <copyright file="CommercialBalanceSystem.Logging.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialDemandBalanceSystem.Logging.cs
+// File: Systems/Commercial/CommercialBalanceSystem.Logging.cs
 // Purpose: DEBUG diagnostics for commercial demand-balance prototype.
 
 #if DEBUG
