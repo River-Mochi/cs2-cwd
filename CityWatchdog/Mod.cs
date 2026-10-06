@@ -111,10 +111,7 @@ namespace CityWatchdog
 
             try
             {
-                AssetDatabase.global.LoadSettings(
-                    ModId,
-                    setting,
-                    new CwdSettings(this));
+                AssetDatabase.global.LoadSettings(ModId, setting, new CwdSettings(this));
             }
             catch (Exception ex)
             {
@@ -161,43 +158,17 @@ namespace CityWatchdog
                 updateSystem.UpdateAt<AlertIconSystem>(SystemUpdatePhase.ModificationEnd);
 
 #if DEBUG
-            updateSystem.UpdateBefore<
-                CommercialDemandBalancePrepareSystem,
-                HouseholdBehaviorSystem>(
-                    SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateBefore<CommercialDemandBalancePrepareSystem, HouseholdBehaviorSystem>(SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateAfter<CommercialDemandBalanceSystem, HouseholdBehaviorSystem>(SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateAfter<CommercialVehicleDemandSystem, CommercialDemandBalanceSystem>(SystemUpdatePhase.GameSimulation);
 
-            updateSystem.UpdateAfter<
-                CommercialDemandBalanceSystem,
-                HouseholdBehaviorSystem>(
-                    SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateBefore<CommercialLeisureDemandSystem, CitizenBehaviorSystem>(SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateAfter<LeisureRestoreSystem, CitizenBehaviorSystem>(SystemUpdatePhase.GameSimulation);
 
-            updateSystem.UpdateAfter<
-                CommercialVehicleDemandSystem,
-                CommercialDemandBalanceSystem>(
-                    SystemUpdatePhase.GameSimulation);
-  
+                updateSystem.UpdateBefore<CommercialHotelBalanceSystem, TouristFindTargetSystem>(SystemUpdatePhase.GameSimulation);
 
-           updateSystem.UpdateBefore<
-                CommercialHotelBalanceSystem,
-                TouristFindTargetSystem>(
-                    SystemUpdatePhase.GameSimulation);
-
-            updateSystem.UpdateAfter<
-                CommercialHotelDiagnosticSystem,
-                LodgingProviderSystem>(
-                    SystemUpdatePhase.GameSimulation);
-
-            updateSystem.UpdateAfter<
-                NoCustomersDebugSystem,
-                ServiceCompanySystem>(
-                    SystemUpdatePhase.GameSimulation);
-
-            updateSystem.UpdateAfter<
-                CommercialProblemSpotDebugSystem,
-                NoCustomersDebugSystem>(
-                    SystemUpdatePhase.GameSimulation);
+                updateSystem.UpdateAfter<NoCustomersDebugSystem, ServiceCompanySystem>(SystemUpdatePhase.GameSimulation);
 #endif
-
             }
             catch (Exception ex)
             {

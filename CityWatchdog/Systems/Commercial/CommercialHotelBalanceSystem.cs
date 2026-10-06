@@ -13,10 +13,14 @@
 
 using System.Collections.Generic;
 
-using CS2Shared.RiverMochi;
-
 using Game;
+using Game.Agents;
+using Game.Buildings;
+using Game.Citizens;
+using Game.Common;
+using Game.Companies;
 using Game.Economy;
+using Game.Pathfind;
 using Game.Prefabs;
 using Game.Simulation;
 
@@ -25,16 +29,15 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    public partial class CommercialHotelBalanceSystem :
-        GameSystemBase
+    public partial class CommercialHotelBalanceSystem : GameSystemBase
     {
         private struct HotelPressure
         {
             public Entity Hotel;
             public Entity Building;
-
             public int ExcessService;
             public int FreeRooms;
+            public int RoomDeficit;
         }
 
         private struct HotelAssignment
@@ -43,23 +46,14 @@ namespace CityWatchdog.Systems
             public Entity Building;
         }
 
-        private const float kTargetServiceRatio =
-            0.85f;
+        private const float kTargetServiceRatio = 0.85f;
+        private const float kTargetOccupiedRatio = 0.12f;
+        private const int kMaxAssignmentsPerUpdate = 4;
 
-        // Intercept at most one real vanilla lodging seeker per update.
-        // This keeps the correction gradual while still running often enough
-        // to catch seekers before TouristFindTargetSystem consumes them.
-        private const int kMaxAssignmentsPerUpdate =
-            1;
+        private readonly List<HotelPressure> m_Hotels = new();
+        private readonly List<HotelAssignment> m_Assignments = new();
 
-        private readonly List<HotelPressure>
-            m_Hotels = new();
-
-        private readonly List<HotelAssignment>
-            m_Assignments = new();
-
-        public override int GetUpdateInterval(
-            SystemUpdatePhase phase)
+        public override int GetUpdateInterval(SystemUpdatePhase phase)
         {
             // Match vanilla TouristFindTargetSystem.
             return 16;
@@ -67,167 +61,126 @@ namespace CityWatchdog.Systems
 
         protected override void OnUpdate()
         {
-            ComponentLookup<
-                Game.Companies.ServiceCompanyData>
-                serviceCompanyDatas =
-                    SystemAPI.GetComponentLookup<
-                        Game.Companies.ServiceCompanyData>(
-                            true);
+            ComponentLookup<ServiceCompanyData> serviceCompanyDatas =
+                SystemAPI.GetComponentLookup<ServiceCompanyData>(true);
 
-            ComponentLookup<
-                IndustrialProcessData>
-                industrialProcessDatas =
-                    SystemAPI.GetComponentLookup<
-                        IndustrialProcessData>(
-                            true);
+            ComponentLookup<IndustrialProcessData> industrialProcessDatas =
+                SystemAPI.GetComponentLookup<IndustrialProcessData>(true);
 
-            ComponentLookup<
-                Game.Buildings.Building>
-                buildings =
-                    SystemAPI.GetComponentLookup<
-                        Game.Buildings.Building>(
-                            true);
+            ComponentLookup<Building> buildings =
+                SystemAPI.GetComponentLookup<Building>(true);
 
-            BufferLookup<
-                Game.Economy.Resources>
-                resources =
-                    SystemAPI.GetBufferLookup<
-                        Game.Economy.Resources>(
-                            true);
+            BufferLookup<Game.Economy.Resources> resources =
+                SystemAPI.GetBufferLookup<Game.Economy.Resources>(true);
+
+            BufferLookup<Renter> renters =
+                SystemAPI.GetBufferLookup<Renter>();
 
             m_Hotels.Clear();
             m_Assignments.Clear();
 
-            int hotelCount = 0;
-            int stressedHotels = 0;
-
             foreach ((
-                RefRO<Game.Companies.LodgingProvider>
-                    lodgingRef,
-                RefRO<Game.Companies.ServiceAvailable>
-                    serviceRef,
-                RefRO<PrefabRef>
-                    prefabRef,
-                RefRO<Game.Buildings.PropertyRenter>
-                    propertyRenterRef,
+                RefRO<LodgingProvider> lodgingRef,
+                RefRO<ServiceAvailable> serviceRef,
+                RefRO<PrefabRef> prefabRef,
+                RefRO<PropertyRenter> propertyRenterRef,
                 Entity hotelEntity) in
-                SystemAPI
-                    .Query<
-                        RefRO<
-                            Game.Companies.LodgingProvider>,
-                        RefRO<
-                            Game.Companies.ServiceAvailable>,
-                        RefRO<
-                            PrefabRef>,
-                        RefRO<
-                            Game.Buildings.PropertyRenter>>()
-                    .WithAll<
-                        Game.Companies.CommercialCompany>()
-                    .WithNone<
-                        Game.Common.Deleted,
-                        Game.Tools.Temp>()
-                    .WithEntityAccess())
+                SystemAPI.Query<
+                    RefRO<LodgingProvider>,
+                    RefRO<ServiceAvailable>,
+                    RefRO<PrefabRef>,
+                    RefRO<PropertyRenter>>()
+                .WithAll<CommercialCompany>()
+                .WithNone<Game.Common.Deleted, Game.Tools.Temp>()
+                .WithEntityAccess())
             {
-                Entity prefab =
-                    prefabRef.ValueRO
-                        .m_Prefab;
+                Entity prefab = prefabRef.ValueRO.m_Prefab;
 
-                if (!serviceCompanyDatas.HasComponent(
-                        prefab) ||
-                    !industrialProcessDatas.HasComponent(
-                        prefab))
+                if (!serviceCompanyDatas.HasComponent(prefab) ||
+                    !industrialProcessDatas.HasComponent(prefab))
                 {
                     continue;
                 }
 
-                IndustrialProcessData process =
-                    industrialProcessDatas[
-                        prefab];
+                IndustrialProcessData process = industrialProcessDatas[prefab];
 
-                if (process.m_Output.m_Resource !=
-                    Resource.Lodging)
+                if (process.m_Output.m_Resource != Resource.Lodging)
                 {
                     continue;
                 }
 
-                hotelCount++;
-
-                Entity building =
-                    propertyRenterRef.ValueRO
-                        .m_Property;
+                Entity building = propertyRenterRef.ValueRO.m_Property;
 
                 if (building == Entity.Null ||
-                    !buildings.HasComponent(
-                        building))
+                    !buildings.HasComponent(building))
                 {
                     continue;
                 }
 
-                Game.Companies.ServiceCompanyData
-                    serviceData =
-                        serviceCompanyDatas[
-                            prefab];
+                ServiceCompanyData serviceData = serviceCompanyDatas[prefab];
+
+                int freeRooms = lodgingRef.ValueRO.m_FreeRooms;
 
                 if (serviceData.m_MaxService <= 0 ||
-                    lodgingRef.ValueRO
-                        .m_FreeRooms <= 0)
+                    freeRooms <= 0 ||
+                    !renters.HasBuffer(hotelEntity))
                 {
                     continue;
                 }
 
                 int stock = 0;
 
-                if (resources.HasBuffer(
-                        hotelEntity))
+                if (resources.HasBuffer(hotelEntity))
                 {
-                    stock =
-                        EconomyUtils.GetResources(
-                            Resource.Lodging,
-                            resources[
-                                hotelEntity]);
+                    stock = EconomyUtils.GetResources(
+                        Resource.Lodging,
+                        resources[hotelEntity]);
                 }
 
-                // Match the stock side of vanilla's NEC notification.
+                // Match the physical-stock side of vanilla NEC.
                 if (stock <= 200)
                 {
                     continue;
                 }
 
                 int targetService =
-                    (int)math.floor(
-                        serviceData.m_MaxService *
-                        kTargetServiceRatio);
+                    (int)math.floor(serviceData.m_MaxService * kTargetServiceRatio);
 
                 int excessService =
-                    math.max(
-                        0,
-                        serviceRef.ValueRO
-                            .m_ServiceAvailable -
-                        targetService);
+                    math.max(0, serviceRef.ValueRO.m_ServiceAvailable - targetService);
 
                 if (excessService <= 0)
                 {
                     continue;
                 }
 
-                stressedHotels++;
+                int occupiedRooms = renters[hotelEntity].Length;
+                int totalRooms = occupiedRooms + freeRooms;
 
-                m_Hotels.Add(
-                    new HotelPressure
-                    {
-                        Hotel =
-                            hotelEntity,
+                if (totalRooms <= 0)
+                {
+                    continue;
+                }
 
-                        Building =
-                            building,
+                int targetOccupiedRooms =
+                    (int)math.ceil(totalRooms * kTargetOccupiedRatio);
 
-                        ExcessService =
-                            excessService,
+                int roomDeficit =
+                    math.max(0, targetOccupiedRooms - occupiedRooms);
 
-                        FreeRooms =
-                            lodgingRef.ValueRO
-                                .m_FreeRooms,
-                    });
+                if (roomDeficit <= 0)
+                {
+                    continue;
+                }
+
+                m_Hotels.Add(new HotelPressure
+                {
+                    Hotel = hotelEntity,
+                    Building = building,
+                    ExcessService = excessService,
+                    FreeRooms = freeRooms,
+                    RoomDeficit = roomDeficit,
+                });
             }
 
             if (m_Hotels.Count == 0)
@@ -235,192 +188,134 @@ namespace CityWatchdog.Systems
                 return;
             }
 
-            BufferLookup<
-                Game.Buildings.Renter>
-                renters =
-                    SystemAPI.GetBufferLookup<
-                        Game.Buildings.Renter>();
+            ComponentLookup<LodgingProvider> lodgingProviders =
+                SystemAPI.GetComponentLookup<LodgingProvider>();
 
-            ComponentLookup<
-                Game.Companies.LodgingProvider>
-                lodgingProviders =
-                    SystemAPI.GetComponentLookup<
-                        Game.Companies.LodgingProvider>();
-
-            int seekersSeen = 0;
             int assignments = 0;
 
             foreach ((
-                RefRW<Game.Citizens.TouristHousehold>
-                    touristRef,
+                RefRW<TouristHousehold> touristRef,
                 Entity householdEntity) in
-                SystemAPI
-                    .Query<
-                        RefRW<
-                            Game.Citizens.TouristHousehold>>()
-                    .WithAll<
-                        Game.Citizens.LodgingSeeker>()
-                    .WithNone<
-                        Game.Common.Target,
-                        Game.Agents.MovingAway,
-                        Game.Common.Deleted>()
-                    .WithNone<
-                        Game.Tools.Temp,
-                        Game.Pathfind.PathInformation>()
-                    .WithEntityAccess())
+                SystemAPI.Query<RefRW<TouristHousehold>>()
+                .WithAll<LodgingSeeker>()
+                .WithNone<Target, MovingAway, Game.Common.Deleted>()
+                .WithNone<Game.Tools.Temp, PathInformation>()
+                .WithEntityAccess())
             {
-                seekersSeen++;
-
-                if (assignments >=
-                    kMaxAssignmentsPerUpdate)
+                if (assignments >= kMaxAssignmentsPerUpdate)
                 {
                     break;
                 }
 
-                Game.Citizens.TouristHousehold
-                    tourist =
-                        touristRef.ValueRO;
+                TouristHousehold tourist = touristRef.ValueRO;
 
-                if (tourist.m_Hotel !=
-                    Entity.Null)
+                if (tourist.m_Hotel != Entity.Null)
                 {
                     continue;
                 }
 
-                int hotelIndex =
-                    SelectHotel();
+                int hotelIndex = SelectHotel();
 
                 if (hotelIndex < 0)
                 {
                     break;
                 }
 
-                HotelPressure pressure =
-                    m_Hotels[
-                        hotelIndex];
+                HotelPressure pressure = m_Hotels[hotelIndex];
 
-                if (!renters.HasBuffer(
-                        pressure.Hotel) ||
-                    !lodgingProviders.HasComponent(
-                        pressure.Hotel))
+                if (!renters.HasBuffer(pressure.Hotel) ||
+                    !lodgingProviders.HasComponent(pressure.Hotel))
                 {
                     continue;
                 }
 
-                Game.Companies.LodgingProvider
-                    lodging =
-                        lodgingProviders[
-                            pressure.Hotel];
+                LodgingProvider lodging = lodgingProviders[pressure.Hotel];
 
                 if (lodging.m_FreeRooms <= 0)
                 {
+                    pressure.FreeRooms = 0;
+                    pressure.RoomDeficit = 0;
+                    m_Hotels[hotelIndex] = pressure;
                     continue;
                 }
 
-                // Mirror vanilla HotelReserveJob:
-                // reserve one real room for this real tourist household.
-                renters[
-                    pressure.Hotel]
-                    .Add(
-                        new Game.Buildings.Renter
-                        {
-                            m_Renter =
-                                householdEntity,
-                        });
+                // Mirror vanilla HotelReserveJob.
+                renters[pressure.Hotel].Add(new Renter
+                {
+                    m_Renter = householdEntity,
+                });
 
                 lodging.m_FreeRooms--;
+                lodgingProviders[pressure.Hotel] = lodging;
 
-                lodgingProviders[
-                    pressure.Hotel] =
-                        lodging;
+                tourist.m_Hotel = pressure.Hotel;
+                touristRef.ValueRW = tourist;
 
-                tourist.m_Hotel =
-                    pressure.Hotel;
+                // Keep our in-memory pressure correct for later assignments
+                // during this same update.
+                pressure.FreeRooms--;
+                pressure.RoomDeficit =
+                    math.max(0, pressure.RoomDeficit - 1);
 
-                touristRef.ValueRW =
-                    tourist;
+                m_Hotels[hotelIndex] = pressure;
 
-                m_Assignments.Add(
-                    new HotelAssignment
-                    {
-                        Household =
-                            householdEntity,
-
-                        Building =
-                            pressure.Building,
-                    });
+                m_Assignments.Add(new HotelAssignment
+                {
+                    Household = householdEntity,
+                    Building = pressure.Building,
+                });
 
                 assignments++;
             }
 
-            // Do the structural changes after the SystemAPI.Query iteration.
+            // Do structural changes after the SystemAPI.Query iteration.
             // Vanilla successful reservation removes LodgingSeeker and leaves
             // the household targeted at the selected physical hotel building.
-            for (int i = 0;
-                i < m_Assignments.Count;
-                i++)
+            for (int i = 0; i < m_Assignments.Count; i++)
             {
-                HotelAssignment assignment =
-                    m_Assignments[i];
+                HotelAssignment assignment = m_Assignments[i];
 
-                if (EntityManager.HasComponent<
-                        Game.Citizens.LodgingSeeker>(
-                        assignment.Household))
+                if (EntityManager.HasComponent<LodgingSeeker>(assignment.Household))
                 {
-                    EntityManager.RemoveComponent<
-                        Game.Citizens.LodgingSeeker>(
-                            assignment.Household);
+                    EntityManager.RemoveComponent<LodgingSeeker>(assignment.Household);
                 }
 
-                if (!EntityManager.HasComponent<
-                        Game.Common.Target>(
-                        assignment.Household))
+                if (!EntityManager.HasComponent<Target>(assignment.Household))
                 {
                     EntityManager.AddComponentData(
                         assignment.Household,
-                        new Game.Common.Target
+                        new Target
                         {
-                            m_Target =
-                                assignment.Building,
+                            m_Target = assignment.Building,
                         });
                 }
-            }
-
-            if (assignments > 0 ||
-                seekersSeen > 0)
-            {
-                LogUtils.Info(
-                    "[CWD-HOTEL-BALANCE] " +
-                    $"hotels={hotelCount} " +
-                    $"stressed={stressedHotels} " +
-                    $"seekersSeen={seekersSeen} " +
-                    $"assigned={assignments}");
             }
         }
 
         private int SelectHotel()
         {
             int selected = -1;
-            int bestExcess = 0;
+            int bestRoomDeficit = 0;
+            int bestExcessService = 0;
 
-            for (int i = 0;
-                i < m_Hotels.Count;
-                i++)
+            for (int i = 0; i < m_Hotels.Count; i++)
             {
-                HotelPressure hotel =
-                    m_Hotels[i];
+                HotelPressure hotel = m_Hotels[i];
 
                 if (hotel.FreeRooms <= 0 ||
-                    hotel.ExcessService <=
-                        bestExcess)
+                    hotel.RoomDeficit <= 0)
                 {
                     continue;
                 }
 
-                bestExcess =
-                    hotel.ExcessService;
-
-                selected = i;
+                if (hotel.RoomDeficit > bestRoomDeficit ||
+                    (hotel.RoomDeficit == bestRoomDeficit &&
+                     hotel.ExcessService > bestExcessService))
+                {
+                    bestRoomDeficit = hotel.RoomDeficit;
+                    bestExcessService = hotel.ExcessService;
+                    selected = i;
+                }
             }
 
             return selected;

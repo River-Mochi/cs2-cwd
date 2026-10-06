@@ -7,7 +7,7 @@
 // ================= </copyright> ======================
 
 // File: Systems/Commercial/CommercialLeisureDemandSystem.cs
-// Purpose: DEBUG-only targeted correction for commercial leisure providers.
+// Purpose: DEBUG-only vanilla leisure-demand correction.
 
 #if DEBUG
 
@@ -25,39 +25,42 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    /// <summary>
-    /// Adds a small number of targeted real leisure trips to individual
-    /// commercial leisure providers with excessive unused Service.
-    ///
-    /// Only residents who genuinely still have low leisure and are currently
-    /// idle at home are considered. Normal TripNeeded and Leisure systems
-    /// still handle travel, spending, Service consumption, and leisure gain.
-    /// </summary>
-    public partial class CommercialLeisureDemandSystem : GameSystemBase
+    internal static class CommercialLeisureDemandState
     {
+        internal static bool Applied;
+        internal static Entity ParametersEntity;
+        internal static int OriginalRandomFactor;
+    }
+
+    /// <summary>
+    /// Temporarily increases vanilla leisure-seeking probability when
+    /// commercial Leisure NEC warnings remain high.
+    ///
+    /// No trips or destinations are created here. CitizenBehaviorSystem
+    /// continues to decide which eligible citizens begin leisure, and
+    /// vanilla LeisureSystem/pathfinding handles destination selection,
+    /// travel, spending, and Service consumption.
+    /// </summary>
+    public partial class CommercialLeisureDemandSystem :
+        GameSystemBase
+    {
+        private const int kWarningGoal = 5;
+
+        private const int kWarningScanInterval = 256;
+
+        private const int kReductionPerWarning = 12;
+
         private SimulationSystem m_SimulationSystem = null!;
-        private TimeSystem m_TimeSystem = null!;
-        private EndFrameBarrier m_EndFrameBarrier = null!;
 
-        private int m_UpdateCount;
+        private EntityQuery m_LeisureParametersQuery;
 
-        private int m_WindowExamined;
-        private int m_WindowEligible;
-        private int m_WindowTargeted;
+        private uint m_LastWarningScanFrame;
 
-        private long m_WindowEstimatedService;
+        private int m_CachedWarningCount;
 
-        private bool m_ConfigurationLogged;
+        private int m_LastLoggedWarnings = -1;
 
-        private EntityQuery m_LeisureProbeQuery;
-
-        public override int GetUpdateInterval(
-            SystemUpdatePhase phase)
-        {
-            // Match vanilla LeisureSystem exactly: 64 simulation frames.
-            return 262144 /
-                LeisureSystem.kUpdatePerDay;
-        }
+        private int m_LastLoggedFactor = -1;
 
         protected override void OnCreate()
         {
@@ -67,22 +70,16 @@ namespace CityWatchdog.Systems
                 World.GetOrCreateSystemManaged<
                     SimulationSystem>();
 
-            m_TimeSystem =
-                World.GetOrCreateSystemManaged<
-                    TimeSystem>();
-
-            m_EndFrameBarrier =
-                World.GetOrCreateSystemManaged<
-                    EndFrameBarrier>();
-
-            m_LeisureProbeQuery =
+            m_LeisureParametersQuery =
                 GetEntityQuery(
-                    ComponentType.ReadOnly<
-                        CommercialLeisureTripProbe>(),
-                    ComponentType.Exclude<
-                        Game.Common.Deleted>(),
-                    ComponentType.Exclude<
-                        Game.Tools.Temp>());
+                    ComponentType.ReadWrite<
+                        LeisureParametersData>());
+
+            RequireForUpdate(
+                m_LeisureParametersQuery);
+
+            m_LastWarningScanFrame =
+                uint.MaxValue;
         }
 
         protected override void OnGameLoaded(
@@ -91,501 +88,227 @@ namespace CityWatchdog.Systems
             base.OnGameLoaded(
                 serializationContext);
 
-            ResetLeisureState();
+            CommercialLeisureDemandState.Applied =
+                false;
 
-            m_UpdateCount = 0;
+            CommercialLeisureDemandState.ParametersEntity =
+                Entity.Null;
 
-            m_WindowExamined = 0;
-            m_WindowEligible = 0;
-            m_WindowTargeted = 0;
+            CommercialLeisureDemandState.OriginalRandomFactor =
+                0;
 
-            m_WindowEstimatedService = 0;
+            m_LastWarningScanFrame =
+                uint.MaxValue;
 
-            m_ConfigurationLogged = false;
+            m_CachedWarningCount =
+                0;
+
+            m_LastLoggedWarnings =
+                -1;
+
+            m_LastLoggedFactor =
+                -1;
         }
 
         protected override void OnUpdate()
         {
-            uint simulationFrame =
-                m_SimulationSystem.frameIndex;
+            RestoreStaleState();
 
-            if (!SystemAPI.TryGetSingleton<
-                    EconomyParameterData>(
-                    out EconomyParameterData
-                        economyParameters))
+            if (m_LeisureParametersQuery
+                    .CalculateEntityCount() != 1)
             {
                 return;
             }
 
-            ComponentLookup<
-                Game.Companies.ServiceCompanyData>
-                serviceCompanyDatas =
-                    SystemAPI.GetComponentLookup<
-                        Game.Companies.ServiceCompanyData>(
-                            true);
+            uint frame =
+                m_SimulationSystem.frameIndex;
 
-            ComponentLookup<
-                Game.Companies.ServiceAvailable>
-                serviceAvailables =
-                    SystemAPI.GetComponentLookup<
-                        Game.Companies.ServiceAvailable>(
-                            true);
+            if (m_LastWarningScanFrame ==
+                    uint.MaxValue ||
+                frame - m_LastWarningScanFrame >=
+                    kWarningScanInterval)
+            {
+                m_LastWarningScanFrame =
+                    frame;
 
+                m_CachedWarningCount =
+                    CountCommercialLeisureWarnings();
+            }
+
+            if (m_CachedWarningCount <=
+                kWarningGoal)
+            {
+                return;
+            }
+
+            Entity parametersEntity =
+                m_LeisureParametersQuery
+                    .GetSingletonEntity();
+
+            LeisureParametersData parameters =
+                EntityManager.GetComponentData<
+                    LeisureParametersData>(
+                        parametersEntity);
+
+            int originalFactor =
+                parameters.m_LeisureRandomFactor;
+
+            if (originalFactor <= 1)
+            {
+                return;
+            }
+
+            // At high NEC pressure, allow at most a 2x increase
+            // in vanilla leisure-seeking probability.
+            int minimumFactor =
+                math.max(
+                    1,
+                    originalFactor / 2);
+
+            int adjustedFactor =
+                math.max(
+                    minimumFactor,
+                    originalFactor -
+                        (m_CachedWarningCount *
+                            kReductionPerWarning));
+
+            if (adjustedFactor >=
+                originalFactor)
+            {
+                return;
+            }
+
+            CommercialLeisureDemandState.Applied =
+                true;
+
+            CommercialLeisureDemandState.ParametersEntity =
+                parametersEntity;
+
+            CommercialLeisureDemandState.OriginalRandomFactor =
+                originalFactor;
+
+            parameters.m_LeisureRandomFactor =
+                adjustedFactor;
+
+            EntityManager.SetComponentData(
+                parametersEntity,
+                parameters);
+
+            if (m_LastLoggedWarnings !=
+                    m_CachedWarningCount ||
+                m_LastLoggedFactor !=
+                    adjustedFactor)
+            {
+                m_LastLoggedWarnings =
+                    m_CachedWarningCount;
+
+                m_LastLoggedFactor =
+                    adjustedFactor;
+
+                LogUtils.Info(
+                    "[CWD-LEISURE] " +
+                    "prototype=v3 " +
+                    "mode=vanilla-demand " +
+                    $"warnings={m_CachedWarningCount} " +
+                    $"randomFactor={originalFactor}->{adjustedFactor}");
+            }
+        }
+
+        private int CountCommercialLeisureWarnings()
+        {
             ComponentLookup<
                 IndustrialProcessData>
-                industrialProcessDatas =
+                processDatas =
                     SystemAPI.GetComponentLookup<
                         IndustrialProcessData>(
                             true);
 
-            ComponentLookup<
-                LeisureProviderData>
-                leisureProviderDatas =
-                    SystemAPI.GetComponentLookup<
-                        LeisureProviderData>(
-                            true);
-
-            BuildLeisurePressure(
-                serviceCompanyDatas,
-                industrialProcessDatas,
-                leisureProviderDatas);
-
-            PrepareTargetedVisitBudget();
-
-            int activeCorrectiveTrips =
-                m_LeisureProbeQuery
-                    .CalculateEntityCount();
-
-            int availableCorrectiveSlots =
-                math.max(
-                    0,
-                    kMaxInFlightTargetedVisitors -
-                        activeCorrectiveTrips);
-
-            m_TargetedVisitBudget =
-                math.min(
-                    m_TargetedVisitBudget,
-                    availableCorrectiveSlots);
-
-            if (!m_ConfigurationLogged)
-            {
-                m_ConfigurationLogged = true;
-
-                LogUtils.Info(
-                    "[CWD-LEISURE] ACTIVE DEBUG targeted leisure prototype v2. " +
-                    "Only individual Entertainment, Meals, and Recreation " +
-                    "providers above 85% unused Service are corrective targets. " +
-                    "Only idle residents at home with genuinely low leisure are " +
-                    "eligible. Normal TripNeeded and LeisureSystem behavior still " +
-                    "handles the actual trip, payment, Service consumption, and " +
-                    "leisure gain.");
-            }
-
-            uint updateFrame =
-                SimulationUtils.GetUpdateFrameWithInterval(
-                    simulationFrame,
-                    (uint)GetUpdateInterval(
-                        SystemUpdatePhase.GameSimulation),
-                    16);
-
-            ComponentLookup<
-                Game.Citizens.Household>
-                households =
-                    SystemAPI.GetComponentLookup<
-                        Game.Citizens.Household>(
-                            true);
-
-            ComponentLookup<
-                Game.Buildings.PropertyRenter>
-                propertyRenters =
-                    SystemAPI.GetComponentLookup<
-                        Game.Buildings.PropertyRenter>(
-                            true);
-
-            ComponentLookup<
-                Game.Citizens.TouristHousehold>
-                touristHouseholds =
-                    SystemAPI.GetComponentLookup<
-                        Game.Citizens.TouristHousehold>(
-                            true);
-
-            ComponentLookup<
-                Game.Citizens.CommuterHousehold>
-                commuterHouseholds =
-                    SystemAPI.GetComponentLookup<
-                        Game.Citizens.CommuterHousehold>(
-                            true);
-
-            ComponentLookup<
-                Game.Citizens.HomelessHousehold>
-                homelessHouseholds =
-                    SystemAPI.GetComponentLookup<
-                        Game.Citizens.HomelessHousehold>(
-                            true);
-
-            ComponentLookup<
-                Game.Agents.MovingAway>
-                movingAway =
-                    SystemAPI.GetComponentLookup<
-                        Game.Agents.MovingAway>(
-                            true);
-
-            ComponentLookup<
-                Game.Citizens.LeisureSeekerCooldown>
-                leisureCooldowns =
-                    SystemAPI.GetComponentLookup<
-                        Game.Citizens.LeisureSeekerCooldown>(
-                            true);
-
-            ComponentLookup<
-                Game.Objects.Transform>
-                transforms =
-                    SystemAPI.GetComponentLookup<
-                        Game.Objects.Transform>(
-                            true);
-
-            BufferLookup<
-                Game.Citizens.TripNeeded>
-                tripBuffers =
-                    SystemAPI.GetBufferLookup<
-                        Game.Citizens.TripNeeded>(
-                            true);
-
-            BufferLookup<
-                Game.Citizens.HouseholdCitizen>
-                householdCitizens =
-                    SystemAPI.GetBufferLookup<
-                        Game.Citizens.HouseholdCitizen>(
-                            true);
-
-            BufferLookup<
-                Game.Economy.Resources>
-                householdResources =
-                    SystemAPI.GetBufferLookup<
-                        Game.Economy.Resources>(
-                            true);
-
-            EntityCommandBuffer commandBuffer =
-                m_EndFrameBarrier.CreateCommandBuffer();
-
-            int examined = 0;
-            int eligible = 0;
-            int targeted = 0;
-
-            long estimatedService = 0;
+            int warnings = 0;
 
             foreach ((
-                RefRO<Game.Citizens.Citizen>
-                    citizenRef,
-                RefRO<Game.Citizens.HouseholdMember>
-                    householdMemberRef,
-                RefRO<Game.Citizens.CurrentBuilding>
-                    currentBuildingRef,
-                Entity citizenEntity) in
+                RefRO<Game.Companies.CompanyNotifications>
+                    notificationsRef,
+                RefRO<PrefabRef>
+                    prefabRef) in
                 SystemAPI
                     .Query<
-                        RefRO<Game.Citizens.Citizen>,
-                        RefRO<Game.Citizens.HouseholdMember>,
-                        RefRO<Game.Citizens.CurrentBuilding>>()
+                        RefRO<
+                            Game.Companies.CompanyNotifications>,
+                        RefRO<
+                            PrefabRef>>()
                     .WithAll<
-                        Game.Citizens.TripNeeded>()
-                    .WithNone<
-                        Game.Citizens.Leisure,
-                        Game.Citizens.TravelPurpose,
-                        Game.Citizens.AttendingMeeting>()
-                    .WithNone<
-                        Game.Citizens.HealthProblem,
-                        Game.Citizens.Worker,
-                        Game.Citizens.Student>()
-                    .WithNone<
-                        Game.Citizens.Criminal,
-                        Game.Companies.ResourceBuyer,
-                        Game.Common.Target>()
+                        Game.Companies.CommercialCompany>()
                     .WithNone<
                         Game.Common.Deleted,
-                        Game.Tools.Temp,
-                        CommercialLeisureTripProbe>()
-                    .WithSharedComponentFilter(
-                        new UpdateFrame(updateFrame))
-                    .WithEntityAccess())
+                        Game.Tools.Temp>())
             {
-                examined++;
-
-                if (m_TargetedVisitBudget <= 0 ||
-                    m_ProviderPressures.Count == 0)
+                if (notificationsRef.ValueRO
+                        .m_NoCustomersEntity ==
+                    Entity.Null)
                 {
                     continue;
                 }
 
-                Game.Citizens.Citizen citizen =
-                    citizenRef.ValueRO;
+                Entity prefab =
+                    prefabRef.ValueRO.m_Prefab;
 
-                Game.Citizens.CitizenAge age =
-                    citizen.GetAge();
-
-                // Keep this prototype conservative.
-                // No work or school schedules are being overridden.
-                if (age !=
-                        Game.Citizens.CitizenAge.Adult &&
-                    age !=
-                        Game.Citizens.CitizenAge.Elderly)
+                if (!processDatas.HasComponent(
+                        prefab))
                 {
                     continue;
                 }
 
-                // Vanilla's own leisure decision starts becoming relevant
-                // below 128. Do not manufacture leisure for a satisfied cim.
-                if (citizen.m_LeisureCounter >= 128)
+                Resource resource =
+                    processDatas[prefab]
+                        .m_Output.m_Resource;
+
+                if (resource ==
+                        Resource.Entertainment ||
+                    resource ==
+                        Resource.Meals ||
+                    resource ==
+                        Resource.Recreation)
                 {
-                    continue;
+                    warnings++;
                 }
-
-                Entity householdEntity =
-                    householdMemberRef.ValueRO
-                        .m_Household;
-
-                if (householdEntity ==
-                        Entity.Null ||
-                    !households.HasComponent(
-                        householdEntity) ||
-                    !propertyRenters.HasComponent(
-                        householdEntity) ||
-                    !householdCitizens.HasBuffer(
-                        householdEntity) ||
-                    !householdResources.HasBuffer(
-                        householdEntity))
-                {
-                    continue;
-                }
-
-                if (touristHouseholds.HasComponent(
-                        householdEntity) ||
-                    commuterHouseholds.HasComponent(
-                        householdEntity) ||
-                    homelessHouseholds.HasComponent(
-                        householdEntity) ||
-                    movingAway.HasComponent(
-                        householdEntity))
-                {
-                    continue;
-                }
-
-                Game.Buildings.PropertyRenter
-                    propertyRenter =
-                        propertyRenters[
-                            householdEntity];
-
-                Entity home =
-                    propertyRenter.m_Property;
-
-                // Only idle residents who are physically at home.
-                if (home == Entity.Null ||
-                    currentBuildingRef.ValueRO
-                        .m_CurrentBuilding !=
-                        home)
-                {
-                    continue;
-                }
-
-                if (!tripBuffers.HasBuffer(
-                        citizenEntity) ||
-                    tripBuffers[
-                        citizenEntity].Length != 0)
-                {
-                    continue;
-                }
-
-                if (!TrySelectTargetProvider(
-                        citizenEntity,
-                        simulationFrame,
-                        citizen,
-                        households[
-                            householdEntity],
-                        propertyRenter,
-                        householdCitizens[
-                            householdEntity].Length,
-                        economyParameters,
-                        home,
-                        ref transforms,
-                        out int providerIndex))
-                {
-                    continue;
-                }
-
-                eligible++;
-
-                ProviderPressure provider =
-                    m_ProviderPressures[
-                        providerIndex];
-
-                float2 sleepTime =
-                    CitizenBehaviorSystem.GetSleepTime(
-                        citizenEntity,
-                        citizen,
-                        ref economyParameters,
-                        isWorker: false,
-                        default,
-                        isStudent: false,
-                        default);
-
-                float timeLeft =
-                    GetTimeLeftUntilInterval(
-                        sleepTime,
-                        m_TimeSystem.normalizedTime);
-
-                uint availableFrames =
-                    (uint)math.max(
-                        1f,
-                        timeLeft * 262144f);
-
-                // LeisureSystem has already run this update.
-                // These components become visible at EndFrame and create one
-                // normal Purpose.Leisure trip to the selected stressed provider.
-                commandBuffer.AddComponent(
-                    citizenEntity,
-                    new Game.Citizens.Leisure
-                    {
-                        m_TargetAgent =
-                            provider.Provider,
-
-                        m_LastPossibleFrame =
-                            unchecked(
-                                simulationFrame +
-                                availableFrames),
-                    });
-
-                commandBuffer.AppendToBuffer(
-                    citizenEntity,
-                    new Game.Citizens.TripNeeded
-                    {
-                        m_TargetAgent =
-                            provider.Building,
-
-                        m_Purpose =
-                            Game.Citizens.Purpose.Leisure,
-
-                        m_Priority = 128,
-                    });
-
-                commandBuffer.AddComponent(
-                    citizenEntity,
-                    new Game.Common.Target
-                    {
-                        m_Target =
-                            provider.Building,
-                    });
-
-                int startService = 0;
-
-                if (serviceAvailables.HasComponent(
-                        provider.Provider))
-                {
-                    startService =
-                        serviceAvailables[
-                            provider.Provider]
-                            .m_ServiceAvailable;
-                }
-
-                commandBuffer.AddComponent(
-                    citizenEntity,
-                    new CommercialLeisureTripProbe
-                    {
-                        Provider =
-                            provider.Provider,
-
-                        Building =
-                            provider.Building,
-
-                        Resource =
-                            provider.Resource,
-
-                        StartFrame =
-                            simulationFrame,
-
-                        ArrivalFrame =
-                            0,
-
-                        StartService =
-                            startService,
-
-                        StartLeisureCounter =
-                            citizen.m_LeisureCounter,
-
-                        Flags =
-                            0,
-                    });
-
-
-                // A previous failed leisure search may have left vanilla's
-                // 20,000-frame retry cooldown. This new targeted trip is valid,
-                // so clear that stale block if it exists.
-                if (leisureCooldowns.HasComponent(
-                        citizenEntity))
-                {
-                    commandBuffer.RemoveComponent<
-                        Game.Citizens.LeisureSeekerCooldown>(
-                            citizenEntity);
-                }
-
-                ConsumeTargetProvider(
-                    providerIndex);
-
-                targeted++;
-
-                estimatedService +=
-                    provider
-                        .EstimatedServicePerVisit;
-
-                int resourceIndex =
-                    EconomyUtils.GetResourceIndex(
-                        provider.Resource);
-
-                if (resourceIndex >= 0 &&
-                    resourceIndex <
-                        m_WindowTargetedByResource
-                            .Length)
-                {
-                    m_WindowTargetedByResource[
-                        resourceIndex]++;
-                }
-
-                m_TargetedVisitBudget--;
             }
 
-            m_UpdateCount++;
-
-            m_WindowExamined +=
-                examined;
-
-            m_WindowEligible +=
-                eligible;
-
-            m_WindowTargeted +=
-                targeted;
-
-            m_WindowEstimatedService +=
-                estimatedService;
-
-            if (m_UpdateCount %
-                kLeisureLogEveryUpdates == 0)
-            {
-                LogLeisureWindow();
-            }
+            return warnings;
         }
 
-        private static float GetTimeLeftUntilInterval(
-            float2 interval,
-            float normalizedTime)
+        private void RestoreStaleState()
         {
-            if (normalizedTime < interval.x)
+            if (!CommercialLeisureDemandState.Applied)
             {
-                return interval.x -
-                    normalizedTime;
+                return;
             }
 
-            return 1f -
-                normalizedTime +
-                interval.x;
+            Entity entity =
+                CommercialLeisureDemandState
+                    .ParametersEntity;
+
+            if (entity != Entity.Null &&
+                EntityManager.Exists(entity) &&
+                EntityManager.HasComponent<
+                    LeisureParametersData>(
+                        entity))
+            {
+                LeisureParametersData parameters =
+                    EntityManager.GetComponentData<
+                        LeisureParametersData>(
+                            entity);
+
+                parameters.m_LeisureRandomFactor =
+                    CommercialLeisureDemandState
+                        .OriginalRandomFactor;
+
+                EntityManager.SetComponentData(
+                    entity,
+                    parameters);
+            }
+
+            CommercialLeisureDemandState.Applied =
+                false;
         }
     }
 }
