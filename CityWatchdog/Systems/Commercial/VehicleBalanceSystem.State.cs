@@ -1,4 +1,4 @@
-// <copyright file="CommercialVehicleDemandSystem.State.cs" company="River-Mochi">
+// <copyright file="VehicleBalanceSystem.State.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialVehicleDemandSystem.State.cs
+// File: Systems/Commercial/VehicleBalanceSystem.State.cs
 // Purpose: Vehicle-store pressure, corrective amount, and DEBUG logging.
 
 #if DEBUG

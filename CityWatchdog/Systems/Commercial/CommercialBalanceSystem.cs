@@ -39,7 +39,7 @@ namespace CityWatchdog.Systems
         private SimulationSystem m_SimulationSystem = null!;
         private ResourceSystem m_ResourceSystem = null!;
 
-        private CommercialDemandBalancePrepareSystem
+        private CommercialBalancePrepareSystem
             m_PrepareSystem = null!;
 
         private int m_UpdateCount;
@@ -74,7 +74,7 @@ namespace CityWatchdog.Systems
 
             m_PrepareSystem =
                 World.GetOrCreateSystemManaged<
-                    CommercialDemandBalancePrepareSystem>();
+                    CommercialBalancePrepareSystem>();
         }
 
         protected override void OnGameLoaded(

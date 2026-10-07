@@ -1,4 +1,4 @@
-// <copyright file="CommercialDemandBalanceSystem.Prepare.cs" company="River-Mochi">
+// <copyright file="CommercialBalancePrepareSystem.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialBalanceSystem.Prepare.cs
+// File: Systems/Commercial/CommercialBalancePrepareSystem.cs
 // Purpose: DEBUG-only snapshot immediately before vanilla household shopping.
 
 #if DEBUG
@@ -30,7 +30,7 @@ namespace CityWatchdog.Systems
     /// If one of these households still has no need after vanilla runs, V4 may
     /// use it for controlled corrective physical shopping demand.
     /// </summary>
-    public partial class CommercialDemandBalancePrepareSystem
+    public partial class CommercialBalancePrepareSystem
         : GameSystemBase
     {
         private readonly HashSet<Entity>

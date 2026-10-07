@@ -22,12 +22,12 @@ namespace CityWatchdog.Systems
     {
         protected override void OnUpdate()
         {
-            if (!CommercialLeisureDemandState.Applied)
+            if (!LeisureBalanceState.Applied)
             {
                 return;
             }
 
-            Entity entity = CommercialLeisureDemandState.ParametersEntity;
+            Entity entity = LeisureBalanceState.ParametersEntity;
 
             if (entity != Entity.Null &&
                 EntityManager.Exists(entity) &&
@@ -37,12 +37,12 @@ namespace CityWatchdog.Systems
                     EntityManager.GetComponentData<LeisureParametersData>(entity);
 
                 parameters.m_LeisureRandomFactor =
-                    CommercialLeisureDemandState.OriginalRandomFactor;
+                    LeisureBalanceState.OriginalRandomFactor;
 
                 EntityManager.SetComponentData(entity, parameters);
             }
 
-            CommercialLeisureDemandState.Applied = false;
+            LeisureBalanceState.Applied = false;
         }
     }
 }

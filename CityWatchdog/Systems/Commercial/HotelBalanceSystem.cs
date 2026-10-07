@@ -1,4 +1,4 @@
-// <copyright file="CommercialHotelBalanceSystem.cs" company="River-Mochi">
+// <copyright file="HotelBalanceSystem.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -6,7 +6,7 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
-// File: Systems/Commercial/CommercialHotelBalanceSystem.cs
+// File: Systems/Commercial/HotelBalanceSystem.cs
 // Purpose: DEBUG-only balancing of existing tourist demand across hotels.
 
 #if DEBUG

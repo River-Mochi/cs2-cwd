@@ -1,4 +1,4 @@
-// <copyright file="LeisureBlanceSystem.cs" company="River-Mochi">
+// <copyright file="LeisureBalanceSystem.cs" company="River-Mochi">
 // Copyright (c) 2026 River-Mochi. All rights reserved.
 // Licensed under the MIT License. You may not use this file except in compliance with this License.
 // See LICENSE file in the project root for full license information.
@@ -25,7 +25,7 @@ using Unity.Mathematics;
 
 namespace CityWatchdog.Systems
 {
-    internal static class CommercialLeisureDemandState
+    internal static class LeisureBalanceState
     {
         internal static bool Applied;
         internal static Entity ParametersEntity;
@@ -88,13 +88,13 @@ namespace CityWatchdog.Systems
             base.OnGameLoaded(
                 serializationContext);
 
-            CommercialLeisureDemandState.Applied =
+            LeisureBalanceState.Applied =
                 false;
 
-            CommercialLeisureDemandState.ParametersEntity =
+            LeisureBalanceState.ParametersEntity =
                 Entity.Null;
 
-            CommercialLeisureDemandState.OriginalRandomFactor =
+            LeisureBalanceState.OriginalRandomFactor =
                 0;
 
             m_LastWarningScanFrame =
@@ -181,13 +181,13 @@ namespace CityWatchdog.Systems
                 return;
             }
 
-            CommercialLeisureDemandState.Applied =
+            LeisureBalanceState.Applied =
                 true;
 
-            CommercialLeisureDemandState.ParametersEntity =
+            LeisureBalanceState.ParametersEntity =
                 parametersEntity;
 
-            CommercialLeisureDemandState.OriginalRandomFactor =
+            LeisureBalanceState.OriginalRandomFactor =
                 originalFactor;
 
             parameters.m_LeisureRandomFactor =
@@ -281,13 +281,13 @@ namespace CityWatchdog.Systems
 
         private void RestoreStaleState()
         {
-            if (!CommercialLeisureDemandState.Applied)
+            if (!LeisureBalanceState.Applied)
             {
                 return;
             }
 
             Entity entity =
-                CommercialLeisureDemandState
+                LeisureBalanceState
                     .ParametersEntity;
 
             if (entity != Entity.Null &&
@@ -302,7 +302,7 @@ namespace CityWatchdog.Systems
                             entity);
 
                 parameters.m_LeisureRandomFactor =
-                    CommercialLeisureDemandState
+                    LeisureBalanceState
                         .OriginalRandomFactor;
 
                 EntityManager.SetComponentData(
@@ -310,7 +310,7 @@ namespace CityWatchdog.Systems
                     parameters);
             }
 
-            CommercialLeisureDemandState.Applied =
+            LeisureBalanceState.Applied =
                 false;
         }
     }
