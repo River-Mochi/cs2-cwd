@@ -10,8 +10,8 @@
     top: 60rem;
     left: var(--screenPadding);
     overflow: visible;
-    // Widen to fit all buttons row with headroom for longer translated words.
-    width: 400rem;
+    // Leave room for the single-row toolbar while staying slimmer than a vanilla panel.
+    width: 380rem;
 }
 
 .panel {
@@ -19,7 +19,7 @@
   top: 0;
   left: 0;
   overflow: visible;
-  width: 400rem;
+  width: 380rem;
   max-height: 890rem;
   // Lets custom wrapper colors show through instead of stacking extra vanilla fills.
   // follows same idea as ZoneTools: make Panel shell transparent,
@@ -366,9 +366,9 @@
     justify-content: space-between;
     align-items: center;
     padding-top: 5rem;
-    padding-right: 10rem;
+    padding-right: 8rem;
     padding-bottom: 5rem;
-    padding-left: 10rem;
+    padding-left: 8rem;
 }
 
 .toolbarLeft,
@@ -393,7 +393,7 @@
     flex-shrink: 1;
     flex-basis: auto;
     min-width: 0;
-    margin-left: 12rem;
+    margin-left: 8rem;
 }
 
 // Left side: keep Info + Road-Name + District-Name + Road-Arrow toggles tight.
