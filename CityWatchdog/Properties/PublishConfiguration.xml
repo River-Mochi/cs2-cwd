@@ -81,13 +81,10 @@ tags: Visual, UI UX tool tips, UI organize icons, Mini HUD view, clean UI
 <Dependency Id="" DisplayName="" />
 <!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 <ChangeLog>
+- refine UI, shorter title header, a little less wide main panel.
+- Recent important updates:
 - Updated for game patch 1.6.2f1.
-- Recent updates a few days ago:
 - Added Bigger UI button — quick access to the game's own interface scaling without Developer Mode.
-- City Watchdog is now focused on notifications, visual comfort, Mini HUD, tooltips, and organizing city information.
-- Milestone and other money-management tools moved to the new Budget + Milestones mod.
-- Money and Population Trends remain in City Watchdog.
-- Added Presets 1 | 2 — hold to save and click to load two notification checkbox layouts. Blue Stars remain separate Mini HUD favorites.
 </ChangeLog>
 <!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon, buymeacoffee, kofi, crowdin, gitlab-->
 <ExternalLink Type="discord" Url="https://discord.gg/gwXgvtyhjc" />
