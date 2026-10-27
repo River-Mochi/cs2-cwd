@@ -82,7 +82,7 @@ tags: Visual, UI UX tool tips, UI organize icons, Mini HUD view, clean UI
 <Dependency Id="" DisplayName="" />
 <!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 <ChangeLog>
-- Hide Road Names now works with Addresses &amp; Names v0.4.0.1+ (thanks to klyte45).
+- Hide Road Names now works with mod Addresses &amp; Names v0.4.0.1+ (thanks to klyte45 for AN update).
 </ChangeLog>
 <!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon, buymeacoffee, kofi, crowdin, gitlab-->
 <ExternalLink Type="discord" Url="https://discord.gg/gwXgvtyhjc" />
