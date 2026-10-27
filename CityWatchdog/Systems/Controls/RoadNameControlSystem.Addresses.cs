@@ -16,7 +16,6 @@ namespace CityWatchdog.Systems
     using System.Reflection;
     using CS2Shared.RiverMochi;
     using Unity.Entities;
-    using UnityEngine;
 
     public partial class RoadNameControlSystem
     {
@@ -69,13 +68,13 @@ namespace CityWatchdog.Systems
 
         private void TryDiscoverAddressesRenderer()
         {
-            if (Time.realtimeSinceStartup < m_NextAddressesLookup)
+            if (UnityEngine.Time.realtimeSinceStartup < m_NextAddressesLookup)
             {
                 return;
             }
 
             // Only retry missing systems once every 5 seconds. No A&N DLL reference.
-            m_NextAddressesLookup = Time.realtimeSinceStartup + kAddressesRetrySeconds;
+            m_NextAddressesLookup = UnityEngine.Time.realtimeSinceStartup + kAddressesRetrySeconds;
 
             try
             {
