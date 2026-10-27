@@ -7,8 +7,7 @@
 // ================= </copyright> ======================
 
 // File: Systems/Controls/RoadNameControlSystem.Addresses.cs
-// Purpose: Experimental optional Addresses & Names compatibility via ECS Enabled.
-// Note: A&N currently renders via a separate callback, so Enabled=false may not hide labels.
+// Purpose: Optional Addresses & Names compatibility via ECS Enabled (A&N v0.4.0.1+).
 
 namespace CityWatchdog.Systems
 {
@@ -53,7 +52,7 @@ namespace CityWatchdog.Systems
                     if (!m_AddressesDisabledByCwd)
                     {
                         m_AddressesDisabledByCwd = true;
-                        LogUtils.Info("Road names: disabled Addresses & Names ECS renderer (experimental).");
+                        LogUtils.Info("Road names: disabled Addresses & Names ECS renderer.");
                     }
                 }
             }
