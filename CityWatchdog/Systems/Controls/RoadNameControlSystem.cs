@@ -47,6 +47,9 @@ namespace CityWatchdog.Systems
 
         protected override void OnDestroy()
         {
+            // Restore A&N's ECS state only if CWD changed it.
+            RestoreAddressesRenderer();
+
             // Restore vanilla rendering on mod unload so the game is clean.
             if (m_CurrentlyUnsubscribed && m_CachedRenderDelegate != null)
             {
@@ -108,6 +111,9 @@ namespace CityWatchdog.Systems
 
         private void ApplyToGame()
         {
+            bool hideRequested = CwdSettings.Instance?.HideRoadNames ?? false;
+            ApplyAddressesRenderer(hideRequested);
+
             if (m_CachedAggregateRenderSystem == null)
             {
                 m_CachedAggregateRenderSystem = World.GetExistingSystemManaged<AggregateRenderSystem>();
@@ -132,7 +138,6 @@ namespace CityWatchdog.Systems
             }
 
             CwdSettings? setting = CwdSettings.Instance;
-            bool hideRequested = setting?.HideRoadNames ?? false;
             bool arrowsForced = setting?.ShowRoadArrows ?? false;
             bool toolWantsArrows = NetToolWantsArrows();
 

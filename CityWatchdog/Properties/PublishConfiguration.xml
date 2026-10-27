@@ -31,6 +31,7 @@ City Watchdog helps you see and manage city info — it does not fix city proble
 - Open the main panel from the top-left Paw icon.
 - **Blue Stars** are Mini HUD favorites and are separate from Presets 1 | 2.
 - Safe to remove any time. No Harmony patches.
+- If using Addresses &amp; Names, update it to **v0.4.0.1 or newer** for the Hide Road Names button to work.
 - **Presets 1 | 2** — save custom notification checkbox layouts. Selecting a preset instead of Hide All will show only the notification icons you want. Blue Stars remain separate Mini HUD favorites.
 - Milestones and other money-management tools moved to the [Budget + Milestones mod](https://mods.paradoxplaza.com/mods/158395/Windows). Install both if you want the previous combined functionality.
 - Money and Population Trends remain in City Watchdog.
@@ -74,17 +75,14 @@ tags: Visual, UI UX tool tips, UI organize icons, Mini HUD view, clean UI
 <!--Link to the forum post where the mod can be discussed-->
 <ForumLink Value="https://forum.paradoxplaza.com/forum/threads/city-watchdog.1924169/" />
 <!--Version of the mod-->
-<ModVersion Value="1.3.6" />
+<ModVersion Value="1.3.7" />
 <!--Recommended version of the base game to use the mod-->
 <GameVersion Value="1.6.*" />
 <!--Dependency for the mod, can be set multiple times-->
 <Dependency Id="" DisplayName="" />
 <!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 <ChangeLog>
-- refine UI, shorter title header, a little less wide main panel.
-- Recent important updates:
-- Updated for game patch 1.6.2f1.
-- Added Bigger UI button — quick access to the game's own interface scaling without Developer Mode.
+- Hide Road Names now works with Addresses &amp; Names v0.4.0.1+ (thanks to klyte45).
 </ChangeLog>
 <!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon, buymeacoffee, kofi, crowdin, gitlab-->
 <ExternalLink Type="discord" Url="https://discord.gg/gwXgvtyhjc" />
