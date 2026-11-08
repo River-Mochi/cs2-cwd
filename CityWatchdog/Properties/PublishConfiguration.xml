@@ -75,14 +75,14 @@ tags: Visual, UI UX tool tips, UI organize icons, Mini HUD view, clean UI
 <!--Link to the forum post where the mod can be discussed-->
 <ForumLink Value="https://forum.paradoxplaza.com/forum/threads/city-watchdog.1924169/" />
 <!--Version of the mod-->
-<ModVersion Value="1.3.7" />
+<ModVersion Value="1.3.8" />
 <!--Recommended version of the base game to use the mod-->
 <GameVersion Value="1.6.*" />
 <!--Dependency for the mod, can be set multiple times-->
 <Dependency Id="" DisplayName="" />
 <!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 <ChangeLog>
-- Hide Road Names now works with mod Addresses &amp; Names v0.4.0.1+ (thanks to klyte45 for AN update).
+- Added "Not Enough Customers" to the Quick Start favorites set (gets a blue star for new installs).
 </ChangeLog>
 <!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon, buymeacoffee, kofi, crowdin, gitlab-->
 <ExternalLink Type="discord" Url="https://discord.gg/gwXgvtyhjc" />
