@@ -56,6 +56,7 @@ namespace CityWatchdog
             (1 << 29);  // No car access
         private const int kMiniHudRecommendedFavoriteMaskHigh =
             (1 << 1) |  // No pedestrian access
+            (1 << 4) |  // Not enough customers
             (1 << 5) |  // Lack of labor
             (1 << 7) |  // Weather damage
             (1 << 9) |  // Water damage
